@@ -1,8 +1,8 @@
 :root {
   font-family: "Segoe UI", "PingFang SC", system-ui, -apple-system, sans-serif;
-  color: #111827;
-  background: #f3f4f6;
-  line-height: 1.4;
+  color: #0f172a;
+  background: #eef2ff;
+  line-height: 1.5;
 }
 
 * {
@@ -11,23 +11,23 @@
 
 body {
   margin: 0;
-  background: #f3f4f6;
+  background: radial-gradient(circle at top, #f8fafc, #e0e7ff 60%);
 }
 
 .app-shell {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem clamp(1rem, 4vw, 2rem) 4rem;
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
 header,
 footer,
-.import-panel,
+.quick-add-card,
 main section {
   background: #fff;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+  border-radius: 1.5rem;
+  padding: 1.75rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
   margin-bottom: 1.5rem;
 }
 
@@ -35,28 +35,73 @@ header {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.5rem;
   align-items: center;
 }
 
-.header-actions button {
-  margin-left: 0.5rem;
+.hero h1 {
+  margin: 0.2rem 0;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
 }
 
-.import-panel {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.8rem;
+  color: #6366f1;
+  margin: 0;
 }
 
-.import-panel input,
-#quickAddForm input {
-  width: 100%;
-}
-
-#quickAddForm {
-  display: grid;
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  align-items: center;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  border: none;
+  border-radius: 0;
+  padding: 0.6rem 1.5rem;
+  min-width: 120px;
+  background: transparent;
+}
+
+.quick-add-card .card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tips {
+  background: #eef2ff;
+  border-radius: 1rem;
+  padding: 1rem;
+  max-width: 240px;
+  color: #4c1d95;
+}
+
+.quick-form {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.quick-form label {
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 button,
@@ -68,36 +113,45 @@ textarea {
 
 input,
 button {
-  border-radius: 0.6rem;
-  border: 1px solid #d1d5db;
-  padding: 0.6rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid #c7d2fe;
+  padding: 0.75rem 1rem;
+  background: #fff;
+}
+
+input:focus,
+button:focus {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
 }
 
 button {
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: #fff;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  font-weight: 600;
 }
 
 button.primary {
-  background: #2563eb;
+  background: linear-gradient(120deg, #4f46e5, #6366f1);
   color: #fff;
-  border-color: #2563eb;
+  border-color: transparent;
+  box-shadow: 0 12px 20px rgba(99, 102, 241, 0.25);
 }
 
-button.primary:focus,
-button.primary:hover {
-  background: #1d4ed8;
+button.ghost {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4c1d95;
+  border-color: transparent;
 }
 
 button.danger {
-  color: #ef4444;
-  border-color: #fca5a5;
-  background: #fff1f1;
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fee2e2;
 }
 
-button.danger:hover {
-  background: #fee2e2;
+button:hover {
+  transform: translateY(-1px);
 }
 
 main .view {
@@ -121,10 +175,11 @@ main .view.active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 1rem;
   padding: 1rem;
   gap: 1rem;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
 }
 
 .reminder-title {
@@ -133,7 +188,7 @@ main .view.active {
 
 .reminder-description {
   margin: 0.25rem 0;
-  color: #4b5563;
+  color: #475569;
 }
 
 .reminder-meta {
@@ -143,7 +198,7 @@ main .view.active {
 }
 
 .empty-state {
-  color: #9ca3af;
+  color: #94a3b8;
   text-align: center;
   padding: 2rem 0;
 }
@@ -152,23 +207,35 @@ main .view.active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.calendar-header button {
+  border-radius: 999px;
 }
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(100px, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  gap: 0.75rem;
 }
 
 .calendar-cell {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.8rem;
-  padding: 0.5rem;
-  min-height: 120px;
+  border: 1px solid #e0e7ff;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  min-height: 140px;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.4rem;
+  background: #f8fafc;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.calendar-cell:hover {
+  border-color: #a5b4fc;
+  box-shadow: inset 0 0 0 1px #a5b4fc;
 }
 
 .calendar-cell header {
@@ -176,7 +243,6 @@ main .view.active {
   justify-content: space-between;
   align-items: center;
   padding: 0;
-  box-shadow: none;
   margin: 0;
 }
 
@@ -185,38 +251,151 @@ main .view.active {
 }
 
 .calendar-cell .badge {
-  background: #dbeafe;
+  background: #ede9fe;
   border-radius: 1rem;
-  padding: 0.15rem 0.4rem;
+  padding: 0.15rem 0.5rem;
   font-size: 0.75rem;
-  color: #1d4ed8;
+  color: #6d28d9;
 }
 
 .calendar-event {
-  font-size: 0.8rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: 0.5rem;
-  background: #fef3c7;
-  border-left: 3px solid #fbbf24;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.6rem;
+  background: #dbeafe;
+  border-left: 3px solid #2563eb;
+  color: #1d4ed8;
 }
 
 .calendar-cell.out-month {
-  opacity: 0.4;
+  opacity: 0.45;
+  cursor: default;
 }
 
-@media (max-width: 720px) {
+.quick-add-card.pulse {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+
+.import-drawer {
+  position: fixed;
+  inset: 0;
+  display: none;
+}
+
+.import-drawer.open {
+  display: block;
+}
+
+.import-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.import-drawer__panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(420px, 100%);
+  background: #fff;
+  padding: 2rem;
+  border-top-left-radius: 1.5rem;
+  border-bottom-left-radius: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: -10px 0 40px rgba(15, 23, 42, 0.2);
+}
+
+.import-drawer__panel header {
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.import-drawer__panel header button {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.file-upload {
+  border: 1px dashed #a5b4fc;
+  border-radius: 1rem;
+  padding: 1rem;
+  text-align: center;
+  color: #4c1d95;
+  font-weight: 600;
+}
+
+.file-upload input {
+  margin-top: 0.8rem;
+}
+
+.table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
   .calendar-grid {
-    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
-  header,
-  .import-panel {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-  }
-
-  .reminder {
+  footer,
+  header {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .calendar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .view-toggle button {
+    min-width: auto;
+    flex: 1;
+  }
+
+  .import-drawer__panel {
+    width: 100%;
+    border-radius: 0;
   }
 }

@@ -5,10 +5,19 @@ const listView = document.getElementById("listView");
 const calendarView = document.getElementById("calendarView");
 const listViewBtn = document.getElementById("listViewBtn");
 const calendarViewBtn = document.getElementById("calendarViewBtn");
+const openImportDrawerBtn = document.getElementById("openImportDrawer");
+const closeImportDrawerBtn = document.getElementById("closeImportDrawer");
+const importDrawer = document.getElementById("importDrawer");
+const importDrawerBackdrop = document.querySelector(
+  "#importDrawer .import-drawer__backdrop"
+);
 const csvInput = document.getElementById("csvInput");
 const clearAllBtn = document.getElementById("clearAll");
 const reminderTemplate = document.getElementById("reminderItemTemplate");
 const quickAddForm = document.getElementById("quickAddForm");
+const quickAddCard = document.querySelector(".quick-add-card");
+const quickAddTitleInput = document.getElementById("title");
+const quickAddDateInput = document.getElementById("date");
 const calendarGrid = document.getElementById("calendarGrid");
 const calendarLabel = document.getElementById("calendarLabel");
 const prevMonthBtn = document.getElementById("prevMonth");
@@ -28,6 +37,16 @@ quickAddForm.addEventListener("submit", handleQuickAdd);
 csvInput.addEventListener("change", handleCsvImport);
 prevMonthBtn.addEventListener("click", () => updateMonth(-1));
 nextMonthBtn.addEventListener("click", () => updateMonth(1));
+openImportDrawerBtn.addEventListener("click", () => toggleImportDrawer(true));
+closeImportDrawerBtn.addEventListener("click", () => toggleImportDrawer(false));
+importDrawerBackdrop.addEventListener("click", () => toggleImportDrawer(false));
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && importDrawer.classList.contains("open")) {
+    toggleImportDrawer(false);
+  }
+});
+
+setView("calendar");
 
 function setView(view) {
   if (view === "list") {
@@ -213,6 +232,7 @@ function renderCalendar() {
     if (date.getMonth() !== month) {
       cell.classList.add("out-month");
     }
+    cell.dataset.date = formatDate(date);
     const header = document.createElement("header");
     const dayLabel = document.createElement("span");
     dayLabel.textContent = date.getDate();
@@ -238,6 +258,10 @@ function renderCalendar() {
         chip.textContent = `${reminder.time} ${reminder.title}`;
         cell.appendChild(chip);
       });
+
+    if (date.getMonth() === month) {
+      cell.addEventListener("click", () => openQuickAddForDate(date));
+    }
 
     calendarGrid.appendChild(cell);
   });
@@ -343,4 +367,23 @@ function formatLeadTime(reminder) {
   if (days) parts.push(`${days} 天`);
   if (minutes) parts.push(`${minutes} 分钟`);
   return parts.join(" ");
+}
+
+function toggleImportDrawer(open) {
+  importDrawer.classList.toggle("open", open);
+  importDrawer.setAttribute("aria-hidden", String(!open));
+  if (open) {
+    csvInput?.focus();
+  }
+}
+
+function openQuickAddForDate(date) {
+  if (!quickAddDateInput) return;
+  quickAddDateInput.value = formatDate(date);
+  quickAddForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  quickAddCard?.classList.add("pulse");
+  requestAnimationFrame(() => {
+    quickAddTitleInput?.focus();
+  });
+  setTimeout(() => quickAddCard?.classList.remove("pulse"), 1200);
 }
