@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>批量日程导入与提醒</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header>
+        <div class="hero">
+          <p class="eyebrow">智能提醒中心</p>
+          <h1>日程管理器</h1>
+          <p>批量导入、快速创建，并在优雅的日历或列表中查看所有提醒。</p>
+        </div>
+        <div class="header-actions">
+          <div class="view-toggle" role="group" aria-label="切换视图">
+            <button id="calendarViewBtn" class="primary">日历视图</button>
+            <button id="listViewBtn">列表视图</button>
+          </div>
+          <button id="openImportDrawer" class="ghost">批量导入</button>
+        </div>
+      </header>
+
+      <section class="quick-add-card">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">快速捕捉想法</p>
+            <h2>新增提醒</h2>
+            <p>填写核心信息，系统会自动按照提前时间进行提醒。</p>
+          </div>
+          <div class="tips">
+            <p>点击任意日历日期即可预填该日。</p>
+          </div>
+        </div>
+        <form id="quickAddForm" class="quick-form">
+          <label>
+            标题
+            <input type="text" id="title" name="title" placeholder="会议、生日、出行..." required />
+          </label>
+          <label>
+            描述
+            <input type="text" id="description" name="description" placeholder="可选备注" />
+          </label>
+          <label>
+            日期
+            <input type="date" id="date" name="date" required />
+          </label>
+          <label>
+            时间
+            <input type="time" id="time" name="time" required />
+          </label>
+          <label>
+            提前提醒(天)
+            <input type="number" id="remindBeforeDays" name="remindBeforeDays" min="0" value="0" />
+          </label>
+          <label>
+            提前提醒(分钟)
+            <input type="number" id="remindBefore" name="remindBefore" min="0" value="15" />
+          </label>
+          <button type="submit" class="primary">添加提醒</button>
+        </form>
+      </section>
+
+      <main>
+        <section id="listView" class="view">
+          <h2>提醒列表</h2>
+          <div class="empty-state" id="emptyList">暂无提醒，请导入或新建。</div>
+          <ul id="reminderList"></ul>
+        </section>
+
+        <section id="calendarView" class="view active">
+          <div class="calendar-header">
+            <button id="prevMonth" aria-label="上个月">◀</button>
+            <div>
+              <h2 id="calendarLabel"></h2>
+            </div>
+            <button id="nextMonth" aria-label="下个月">▶</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </section>
+      </main>
+
+      <footer>
+        <p>数据保存在浏览器中，刷新后仍然有效。</p>
+        <button id="clearAll" class="danger">清空所有提醒</button>
+      </footer>
+    </div>
+
+    <template id="reminderItemTemplate">
+      <li class="reminder">
+        <div>
+          <h3 class="reminder-title"></h3>
+          <p class="reminder-description"></p>
+          <p class="reminder-meta"></p>
+        </div>
+        <button class="danger delete">删除</button>
+      </li>
+    </template>
+
+    <section id="importDrawer" class="import-drawer" aria-hidden="true">
+      <div class="import-drawer__backdrop" data-close="import"></div>
+      <div class="import-drawer__panel" role="dialog" aria-labelledby="importDrawerTitle">
+        <header>
+          <div>
+            <p class="eyebrow">CSV 批量导入</p>
+            <h2 id="importDrawerTitle">一键把日程导入系统</h2>
+            <p>准备好表头与示例数据后，上传 CSV 即可。导入数据会立刻出现在日历与列表中。</p>
+          </div>
+          <button id="closeImportDrawer" aria-label="关闭导入面板">✕</button>
+        </header>
+        <div class="drawer-body">
+          <ol>
+            <li>使用 UTF-8 编码保存文件。</li>
+            <li>必填列：title、date(YYYY-MM-DD)、time(HH:MM)。</li>
+            <li>可选列：description、remindBeforeDays、remindBefore。</li>
+          </ol>
+          <div class="drawer-form">
+            <label class="file-upload">
+              <span>选择 CSV 文件</span>
+              <input type="file" id="csvInput" accept=".csv" />
+            </label>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>title</th>
+                    <th>description</th>
+                    <th>date</th>
+                    <th>time</th>
+                    <th>remindBeforeDays</th>
+                    <th>remindBefore</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>季度 OKR</td>
+                    <td>复盘会议</td>
+                    <td>2024-09-30</td>
+                    <td>09:00</td>
+                    <td>1</td>
+                    <td>60</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
