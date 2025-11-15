@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>批量日程导入与提醒</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header>
+        <div>
+          <h1>日程管理器</h1>
+          <p>批量导入、快速添加，并在日历或列表中查看所有提醒。</p>
+        </div>
+        <div class="header-actions">
+          <button id="listViewBtn" class="primary">列表视图</button>
+          <button id="calendarViewBtn">日历视图</button>
+        </div>
+      </header>
+
+      <section class="import-panel">
+        <div>
+          <h2>批量导入 CSV</h2>
+          <p>
+            支持的列：title, description, date(YYYY-MM-DD), time(HH:MM)，
+            remindBeforeDays(天，可选)，remindBefore(分钟，可选)。
+          </p>
+          <input type="file" id="csvInput" accept=".csv" />
+        </div>
+        <div>
+          <h2>快速新增</h2>
+          <form id="quickAddForm">
+            <input
+              type="text"
+              id="title"
+              name="title"
+              placeholder="标题"
+              required
+            />
+            <input
+              type="text"
+              id="description"
+              name="description"
+              placeholder="描述"
+            />
+            <input type="date" id="date" name="date" required />
+            <input type="time" id="time" name="time" required />
+            <input
+              type="number"
+              id="remindBeforeDays"
+              name="remindBeforeDays"
+              min="0"
+              value="0"
+            />
+            <label for="remindBeforeDays">提前提醒(天)</label>
+            <input
+              type="number"
+              id="remindBefore"
+              name="remindBefore"
+              min="0"
+              value="15"
+            />
+            <label for="remindBefore">提前提醒(分钟)</label>
+            <button type="submit" class="primary">添加提醒</button>
+          </form>
+        </div>
+      </section>
+
+      <main>
+        <section id="listView" class="view active">
+          <h2>提醒列表</h2>
+          <div class="empty-state" id="emptyList">暂无提醒，请导入或新建。</div>
+          <ul id="reminderList"></ul>
+        </section>
+
+        <section id="calendarView" class="view">
+          <div class="calendar-header">
+            <button id="prevMonth" aria-label="上个月">◀</button>
+            <div>
+              <h2 id="calendarLabel"></h2>
+            </div>
+            <button id="nextMonth" aria-label="下个月">▶</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </section>
+      </main>
+
+      <footer>
+        <p>数据保存在浏览器中，刷新后仍然有效。</p>
+        <button id="clearAll" class="danger">清空所有提醒</button>
+      </footer>
+    </div>
+
+    <template id="reminderItemTemplate">
+      <li class="reminder">
+        <div>
+          <h3 class="reminder-title"></h3>
+          <p class="reminder-description"></p>
+          <p class="reminder-meta"></p>
+        </div>
+        <button class="danger delete">删除</button>
+      </li>
+    </template>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
