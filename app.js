@@ -287,6 +287,10 @@ function scheduleAllReminders() {
   reminders.forEach(scheduleReminder);
 }
 
+function supportsNotifications() {
+  return typeof Notification !== "undefined";
+}
+
 async function scheduleReminder(reminder) {
   const reminderDate = getReminderDate(reminder);
   const notifyAt = new Date(
@@ -296,12 +300,12 @@ async function scheduleReminder(reminder) {
 
   if (delay <= 0) return;
 
-  if (Notification.permission === "default") {
+  if (supportsNotifications() && Notification.permission === "default") {
     await Notification.requestPermission();
   }
 
   const timer = setTimeout(() => {
-    if (Notification.permission === "granted") {
+    if (supportsNotifications() && Notification.permission === "granted") {
       new Notification(reminder.title, {
         body: `${reminder.description || ""} ${reminder.date} ${reminder.time}`.trim(),
       });
@@ -327,7 +331,10 @@ function formatReminderMeta(reminder) {
 }
 
 function formatDate(date) {
-  return date.toISOString().split("T")[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getLeadTimeMinutes(reminder) {
