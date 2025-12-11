@@ -1,0 +1,83 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/* 下面是你的 models（User / Event / ReminderRule / ReminderJob / PushSubscription）
+   如果之前已经按我给你的版本写好了，就不要动；只要保证上面的 datasource 有 url 行 */
+
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  
+  events            Event[]
+  reminderRules     ReminderRule[]
+  reminderJobs      ReminderJob[]
+  pushSubscriptions PushSubscription[]
+}
+
+model Event {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  title          String
+  date           String   // YYYY-MM-DD
+  time           String?  // HH:mm
+  datetime       DateTime // ISO DateTime for sorting/querying
+  label          String?
+  notes          String?
+  
+  reminderJobs   ReminderJob[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([userId, date])
+}
+
+model ReminderRule {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  label         String   // e.g. "Contract"
+  offsetsInDays Int[]    // e.g. [7, 3, 1]
+  defaultTime   String   // "10:00"
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([userId, label])
+}
+
+model ReminderJob {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fireTime  DateTime
+  sent      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId, sent, fireTime])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String
+  p256dh    String
+  auth      String
+  
+  createdAt DateTime @default(now())
+}

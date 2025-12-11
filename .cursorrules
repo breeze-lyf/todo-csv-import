@@ -1,0 +1,239 @@
+# =========================================
+# Cursor / Codex Global Project Rules
+# Project: SimpleCalendar Reminder
+# Features: Monthly Calendar + Batch Import + Notifications + Auth + Backend
+# =========================================
+
+# ===== 0. 技术栈强制规则 =====
+TECH_STACK:
+  frontend: Next.js 14 (App Router) + React + TypeScript + TailwindCSS
+  backend: Next.js Route Handlers (API routes in app/api)
+  orm: Prisma
+  database: PostgreSQL (dev & prod，推荐本地 Docker 或托管服务如 Supabase/Neon)
+  storage_frontend: IndexedDB (可选缓存, 非唯一存储)
+  parsing: PapaParse (CSV)
+  notifications: Notification API + setTimeout (基础) + optional Service Worker
+  package_manager: pnpm
+  ui_style: 深色风格, 移动端优先
+  calendar: 月视图 (Month Grid)，可使用开源库或自绘格子
+
+ENFORCE_TECH_STACK:
+  - 必须使用 Prisma + PostgreSQL 作为唯一持久化数据库。
+  - 不得使用 SQLite / MySQL / MongoDB / 其他数据库。
+  - 优先使用 Next.js Fullstack 能力，不再实现单独的 Express/Fastify 服务，除非用户明确要求单独后端。
+  - 严禁推荐 Python / Flask / Django / PHP / Java 后端。
+  - 严禁推荐 Redux / MobX（除非用户明确要求）。
+  - 严禁引入过度复杂的分布式消息队列/微服务（当前项目为中小型应用）。
+
+# ===== 1. PRD & 项目边界控制 =====
+SCOPE:
+  allowed:
+    - 用户登录 / 注册 / 登出（Email + 密码 简单版）
+    - 会话保持（JWT 或 NextAuth Credentials Provider）
+    - 月历视图（month grid）
+    - 当日事件列表与编辑
+    - 事件新增（长按/右击）
+    - 批量 CSV 导入
+    - 批量提醒（Notification API）
+    - 事件持久化到 PostgreSQL（Prisma）
+    - 每个用户只能访问自己账号下的事件数据（多用户隔离）
+  NOT_ALLOWED:
+    - 第三方 OAuth 登录（Google/微信/微博 等）【当前版本不做】
+    - Google Calendar / Outlook / iCloud 同步【当前版本不做】
+    - RRULE / 复杂重复事件
+    - 邮件 / SMS 提醒
+    - 高复杂度权限系统（仅“当前用户”维度）
+
+RULE:
+  AI 必须拒绝生成 NOT_ALLOWED 中的功能，并提醒“该功能不在当前版本范围内，可留待以后迭代”。
+
+# ===== 2. 架构设计规则 =====
+ARCHITECTURE:
+  - 单仓库 Next.js 应用，结构示例：
+    - /app           # App Router 页面、布局
+    - /app/api       # Route Handlers (REST 风格 API)
+    - /components    # UI 组件
+    - /lib           # 通用逻辑（db、csv、auth、types 等）
+    - /prisma        # schema.prisma + migrations
+  - 使用 Prisma 定义 User 与 Event 模型：
+
+      model User {
+        id        String   @id @default(cuid())
+        email     String   @unique
+        password  String   // 哈希后的密码
+        createdAt DateTime @default(now())
+        events    Event[]
+      }
+
+      model Event {
+        id                     String   @id @default(cuid())
+        userId                 String
+        user                   User     @relation(fields: [userId], references: [id])
+        title                  String
+        date                   String   // YYYY-MM-DD
+        time                   String?  // HH:mm
+        datetime               DateTime // 实际提醒时间点 (本地时区转 ISO 后存储)
+        reminderOffsetMinutes  Int
+        createdAt              DateTime @default(now())
+      }
+
+  - 认证与授权：
+    - 简单 users 表 + password hash + JWT 或 NextAuth Credentials Provider。
+    - 所有 /api/events* 端点必须验证当前用户，并且只操作当前用户的数据。
+
+RESTRICTIONS:
+  - 严禁在前端直接操作数据库，所有持久化操作必须通过 /app/api 下的 Route Handler 完成。
+  - 严禁在代码中以明文形式存储密码，必须使用 bcrypt 或类似哈希。
+  - 严禁把 secret 放在前端代码里，统一用环境变量管理：
+      - DATABASE_URL=postgres://...
+      - AUTH_SECRET=...
+      - 其它凭证
+
+# ===== 3. CSV 导入规范 =====
+CSV_REQUIREMENTS:
+  - 必须实现 CSV 自动列名识别（title/date/time/reminder_offset_minutes）
+  - 支持中英文列名别名（如: title/任务名称/事件名称, date/开始日期/日期 等）
+  - 日期解析必须宽容模式，失败需返回具体行号和错误原因
+  - 解析逻辑单独放在 lib/csv.ts 中
+  - 导入流程：
+      1) 前端解析 CSV → 展示预览列表
+      2) 用户确认后通过 API `/api/events/bulk-create` 将事件批量提交到后端
+      3) 后端使用 Prisma 在单个事务中批量插入 PostgreSQL，并返回成功条数和失败记录（如有）
+
+RULE:
+  - AI 生成的 CSV 解析代码必须包含错误处理与类型校验。
+  - 不得在后端重复解析 CSV 文本（解析只做一次，最好在前端）。
+
+# ===== 4. 任务拆解规则 =====
+TASK_DECOMPOSITION:
+  - 任务必须以“垂直切片”（vertical slice）呈现，一次完成从前端到后端的一个完整用户路径。
+  - 每个任务至少包括：
+      - UI 组件
+      - 前端状态与交互
+      - 对应的 API Route Handler
+      - Prisma 层操作（连接 PostgreSQL）
+      - 至少 1 个测试（单元或集成）
+
+ACCEPTABLE_TASK_SAMPLE:
+  - “实现注册页面 + /api/auth/register, 完成密码哈希存储 + 成功后跳转登录”
+  - “实现 CSV 预览页面 + /api/events/bulk-create, 批量创建事件并刷新日历”
+
+UNACCEPTABLE_SAMPLE:
+  - “实现后端”
+  - “实现全部导入功能”
+
+# ===== 5. TDD / Testing Rules =====
+TESTING:
+  - 测试框架优先使用 Vitest + React Testing Library + supertest (或基于 fetch 的 API 测试)
+  - PostgreSQL 测试可使用 test 数据库或 Docker 容器，测试结束后清理数据。
+  - 关键测试点：
+      - 注册登录流程（正确 + 错误密码）
+      - 未登录用户访问 /api/events 时必须返回 401
+      - 仅能访问自己的事件（userId 隔离）
+      - CSV 解析正确处理各种日期格式
+      - 提醒时间计算：datetime 与 reminderOffsetMinutes 的关系正确
+
+RULE:
+  - 每当用户要求实现新功能时，AI 应先建议一个最小化的失败测试（Red），再补充实现（Green）。
+
+# ===== 6. 安全与代码质量 =====
+SECURITY:
+  - 密码必须使用 bcrypt 或类似库哈希后存储。
+  - JWT（如采用）必须使用 httpOnly cookie 或 server-side session，避免 XSS 窃取。
+  - 所有 API Route 必须检查当前用户身份，不允许通过传参 userId 操作他人数据（防止 IDOR）。
+  - CSV 上传仅通过前端 file input，禁止直接在后端接受任意文件路径。
+  - 严禁使用 eval / new Function / 动态执行用户输入。
+  - 对外返回的错误信息不应泄露数据库结构或敏感信息。
+
+QUALITY:
+  - 函数名、变量名必须语义清晰。
+  - 复杂逻辑（>20 行）必须拆分。
+  - 必须使用 TypeScript 严格模式 (strict: true)。
+  - UI 组件保持无副作用，数据请求放在 hooks 或 page 级逻辑中。
+
+# ===== 7. 审计（Bad Cop Mode）=====
+AUDIT:
+  - 在 Stage 5 时，AI 必须：
+      - 检查认证逻辑是否存在绕过可能
+      - 检查 API 是否存在越权（IDOR）和注入风险（Prisma 默认安全，但 where 条件需正确）
+      - 检查是否存在 XSS 风险（例如将 CSV 内容直接作为 HTML 插入）
+      - 给出明确的修复建议
+      - 更新相关文档 (PRD / API_SPEC.md / README)
+
+# ===== 8. 交互规则 =====
+INTERACTION:
+  - AI 必须按照以下阶段协同开发：
+      0. 规则注入 (当前阶段)
+      1. 需求工程：帮助用户完善 PRD
+      2. 架构设计：生成 Mermaid 图 + Prisma schema + API 结构
+      3. 任务拆解：生成 TODO.md 垂直切片任务列表
+      4. 循环开发：单个切片的 TDD 开发
+      5. 审计与验收：安全审计 + 文档更新
+  - 每阶段结束前，AI 必须问用户：“是否接受该阶段产物并进入下一阶段？”
+
+DONE_CRITERIA:
+  - 只有当用户明确表示“通过/可以进入下一阶段”时，才允许跨阶段输出。
+
+# ===== 9. Web Push 与后台调度规则 =====
+
+WEB_PUSH:
+  required: true
+  components:
+    - Service Worker (sw.js 或 sw.ts)
+    - 前端 Push Subscription (PushManager.subscribe)
+    - 后端存储 subscription (PostgreSQL: push_subscriptions 表)
+    - 后端使用 Web Push Protocol (如 web-push 库)
+    - 后端定时任务 Scheduler (Cron 或队列轮询)
+    - 后端查找未来需发送提醒的事件，并触发 push
+
+DATABASE_TABLES:
+  push_subscriptions:
+    id: string (cuid)
+    userId: string
+    endpoint: string
+    p256dh: string
+    auth: string
+    createdAt: DateTime
+
+REMINDER_LOGIC:
+  - 事件保存到 DB 后，后端根据 reminderOffsetMinutes 生成多个 “reminder jobs”
+  - reminder jobs 存入表 reminder_jobs，如：
+
+      model ReminderJob {
+        id         String   @id @default(cuid())
+        userId     String
+        eventId    String
+        fireTime   DateTime  // 触发提醒的绝对时间
+        sent       Boolean   @default(false)
+        createdAt  DateTime  @default(now())
+      }
+
+  - Scheduler 每分钟扫描:
+      SELECT * FROM reminder_jobs 
+      WHERE sent = false AND fireTime <= NOW()
+  - 对每个 job 调用 Web Push
+  - 成功后 sent = true
+
+SECURITY_REQUIREMENTS:
+  - Web Push VAPID keys 存储在后端环境变量中
+  - 前端不得硬编码 keys
+  - subscription 必须绑定 userId
+  - 所有 push API 只能作用于当前用户的数据
+
+ARCHITECTURE_REQUIREMENTS:
+  - 架构图必须展示完整 Web Push 流程：
+      前端 → Service Worker → Subscription → 后端 → Scheduler → push → Service Worker → Notification
+
+TESTING_REQUIREMENTS:
+  - 必须包含以下测试：
+      1. Subscription 写入数据库测试
+      2. ReminderJob 生成测试
+      3. Scheduler 在正确时间触发的测试（可 mock 时间）
+      4. sent = false → true 状态转换测试
+      5. 非当前用户的 job 不能被触发
+
+INTERACTION:
+  - 在 Stage 2 必须绘制两张 Mermaid 图：
+      1. Web Push 端到端流程图
+      2. ReminderJob 调度流程图
+  - 用户确认图与 API 设计后才能进入 Stage 3 任务拆解

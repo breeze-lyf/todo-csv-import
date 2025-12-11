@@ -1,17 +1,36 @@
-# todo-csv-import
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-一个零依赖的浏览器端日程管理工具，支持批量导入 CSV 日程、快速新增提醒、日历 / 列表双视图以及浏览器提醒。
+## Getting Started
 
-## 功能概览
-- **CSV 批量导入**：文件中包含 `title, description, date, time, remindBeforeDays, remindBefore` 列即可一次性导入所有提醒。
-- **快速新增**：在页面上填写标题、描述、日期、时间以及需要提前多少天 / 分钟即可立即创建提醒。
-- **提醒功能**：利用浏览器 Notification API 定时弹出提醒（若用户未授权则使用 `alert` 兜底）。
-- **多视图展示**：可在列表与日历视图之间切换，所有数据保存于 `localStorage`，刷新页面不丢失。
+First, run the development server:
 
-## 使用方式
-1. 打开 `index.html` 即可开始使用（可直接在浏览器中打开或通过任意静态服务器托管）。
-2. 点击“批量导入 CSV”上传数据（支持在表格中配置提前天数与分钟），或通过“快速新增”表单创建提醒。
-3. 在页眉处切换“列表视图 / 日历视图”查看所有提醒。
-4. 如需重新开始，可点击底部“清空所有提醒”。
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-> **提示**：首次触发提醒时浏览器会弹出授权框，请允许发送通知以便使用弹窗提醒功能。
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
