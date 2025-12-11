@@ -86,74 +86,92 @@ export default function SettingsPage() {
     }
 
     const requestNotificationPermission = async () => {
-        console.log('[Push] Starting notification permission request...')
+        console.log('[Push] Button clicked - starting permission request...')
 
-        // Check if browser supports notifications
+        // Check browser support
         if (!('Notification' in window)) {
-            console.error('[Push] Browser does not support notifications')
-            alert('This browser does not support notifications')
+            console.error('[Push] Notification API not supported')
+            alert('❌ This browser does not support notifications')
+            return
+        }
+
+        if (!('serviceWorker' in navigator)) {
+            console.error('[Push] Service Worker not supported')
+            alert('❌ Service Worker is not supported in this browser')
             return
         }
 
         console.log('[Push] Current permission:', Notification.permission)
 
-        // Check if Service Worker is supported
-        if (!('serviceWorker' in navigator)) {
-            console.error('[Push] Service Worker not supported')
-            alert('Service Worker is not supported in this browser')
+        // If already granted, just subscribe
+        if (Notification.permission === 'granted') {
+            console.log('[Push] Permission already granted, subscribing...')
+            await subscribeToPush()
             return
         }
 
+        // If denied, show instructions
+        if (Notification.permission === 'denied') {
+            alert('❌ Notifications are blocked. Please enable them in your browser settings:\n\n1. Click the lock icon in the address bar\n2. Find "Notifications"\n3. Change to "Allow"')
+            return
+        }
+
+        // Request permission (must be in direct response to user action)
         try {
-            // Request permission
-            console.log('[Push] Requesting permission...')
+            console.log('[Push] Requesting permission NOW...')
             const permission = await Notification.requestPermission()
             console.log('[Push] Permission result:', permission)
 
-            if (permission !== 'granted') {
-                alert('Notification permission denied. Please enable it in browser settings.')
-                return
+            if (permission === 'granted') {
+                console.log('[Push] Permission granted! Subscribing...')
+                await subscribeToPush()
+            } else {
+                alert('❌ Notification permission denied')
             }
+        } catch (error) {
+            console.error('[Push] Permission request error:', error)
+            alert('❌ Failed to request permission: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
 
-            // Wait for service worker to be ready
+    const subscribeToPush = async () => {
+        try {
+            // Wait for service worker
             console.log('[Push] Waiting for Service Worker...')
             const registration = await navigator.serviceWorker.ready
-            console.log('[Push] Service Worker ready:', registration)
+            console.log('[Push] Service Worker ready')
 
-            // Get VAPID public key
-            console.log('[Push] Fetching VAPID public key...')
+            // Get VAPID key
+            console.log('[Push] Fetching VAPID key...')
             const keyRes = await fetch('/api/push/vapid-public-key')
-            if (!keyRes.ok) {
-                throw new Error('Failed to fetch VAPID key')
-            }
-            const { publicKey } = await keyRes.json()
-            console.log('[Push] VAPID public key received:', publicKey?.substring(0, 20) + '...')
+            if (!keyRes.ok) throw new Error('Failed to fetch VAPID key')
 
-            // Subscribe to push
-            console.log('[Push] Subscribing to push notifications...')
+            const { publicKey } = await keyRes.json()
+            console.log('[Push] VAPID key received')
+
+            // Subscribe
+            console.log('[Push] Creating subscription...')
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: publicKey,
             })
-            console.log('[Push] Subscription created:', subscription.endpoint)
+            console.log('[Push] Subscription created')
 
-            // Send subscription to server
-            console.log('[Push] Sending subscription to server...')
-            const subRes = await fetch('/api/push/subscribe', {
+            // Save to server
+            console.log('[Push] Saving subscription...')
+            const res = await fetch('/api/push/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(subscription.toJSON()),
             })
 
-            if (!subRes.ok) {
-                throw new Error('Failed to save subscription')
-            }
+            if (!res.ok) throw new Error('Failed to save subscription')
 
-            console.log('[Push] Subscription saved successfully!')
-            alert('Push notifications enabled successfully! ✅')
+            console.log('[Push] ✅ Success!')
+            alert('✅ Push notifications enabled successfully!')
         } catch (error) {
-            console.error('[Push] Error:', error)
-            alert('Failed to enable push notifications: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            console.error('[Push] Subscription error:', error)
+            alert('❌ Failed to enable push: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 
