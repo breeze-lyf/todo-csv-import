@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useToast } from '@/hooks/use-toast'
 
 const eventSchema = z.object({
     title: z.string().min(1, 'Title is required'),
@@ -36,7 +37,7 @@ interface EventDialogProps {
 
 export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialogProps) {
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const { toast } = useToast()
 
     const { register, handleSubmit, formState: { errors }, reset } = useForm<EventFormData>({
         resolver: zodResolver(eventSchema),
@@ -51,7 +52,6 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
 
     const onSubmit = async (data: EventFormData) => {
         setLoading(true)
-        setError(null)
 
         try {
             const url = event ? `/api/events/${event.id}` : '/api/events'
@@ -68,11 +68,20 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
                 throw new Error(json.error || 'Failed to save event')
             }
 
+            toast({
+                title: event ? 'Event updated' : 'Event created',
+                description: `${data.title} has been ${event ? 'updated' : 'created'} successfully.`,
+            })
+
             reset()
             onOpenChange(false)
             onSuccess?.()
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Something went wrong')
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: err instanceof Error ? err.message : 'Something went wrong',
+            })
         } finally {
             setLoading(false)
         }
@@ -113,8 +122,6 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
                         <Label htmlFor="notes">Notes (optional)</Label>
                         <Textarea id="notes" rows={3} {...register('notes')} />
                     </div>
-
-                    {error && <p className="text-sm text-red-500">{error}</p>}
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
