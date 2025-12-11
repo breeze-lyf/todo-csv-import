@@ -86,39 +86,74 @@ export default function SettingsPage() {
     }
 
     const requestNotificationPermission = async () => {
+        console.log('[Push] Starting notification permission request...')
+
+        // Check if browser supports notifications
         if (!('Notification' in window)) {
+            console.error('[Push] Browser does not support notifications')
             alert('This browser does not support notifications')
             return
         }
 
-        const permission = await Notification.requestPermission()
+        console.log('[Push] Current permission:', Notification.permission)
 
-        if (permission === 'granted') {
-            // Subscribe to push notifications
-            try {
-                const registration = await navigator.serviceWorker.ready
+        // Check if Service Worker is supported
+        if (!('serviceWorker' in navigator)) {
+            console.error('[Push] Service Worker not supported')
+            alert('Service Worker is not supported in this browser')
+            return
+        }
 
-                // Get VAPID public key
-                const keyRes = await fetch('/api/push/vapid-public-key')
-                const { publicKey } = await keyRes.json()
+        try {
+            // Request permission
+            console.log('[Push] Requesting permission...')
+            const permission = await Notification.requestPermission()
+            console.log('[Push] Permission result:', permission)
 
-                const subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: publicKey,
-                })
-
-                // Send subscription to server
-                await fetch('/api/push/subscribe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(subscription.toJSON()),
-                })
-
-                alert('Push notifications enabled!')
-            } catch (error) {
-                console.error('Push subscription error:', error)
-                alert('Failed to enable push notifications')
+            if (permission !== 'granted') {
+                alert('Notification permission denied. Please enable it in browser settings.')
+                return
             }
+
+            // Wait for service worker to be ready
+            console.log('[Push] Waiting for Service Worker...')
+            const registration = await navigator.serviceWorker.ready
+            console.log('[Push] Service Worker ready:', registration)
+
+            // Get VAPID public key
+            console.log('[Push] Fetching VAPID public key...')
+            const keyRes = await fetch('/api/push/vapid-public-key')
+            if (!keyRes.ok) {
+                throw new Error('Failed to fetch VAPID key')
+            }
+            const { publicKey } = await keyRes.json()
+            console.log('[Push] VAPID public key received:', publicKey?.substring(0, 20) + '...')
+
+            // Subscribe to push
+            console.log('[Push] Subscribing to push notifications...')
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: publicKey,
+            })
+            console.log('[Push] Subscription created:', subscription.endpoint)
+
+            // Send subscription to server
+            console.log('[Push] Sending subscription to server...')
+            const subRes = await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subscription.toJSON()),
+            })
+
+            if (!subRes.ok) {
+                throw new Error('Failed to save subscription')
+            }
+
+            console.log('[Push] Subscription saved successfully!')
+            alert('Push notifications enabled successfully! ✅')
+        } catch (error) {
+            console.error('[Push] Error:', error)
+            alert('Failed to enable push notifications: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 
