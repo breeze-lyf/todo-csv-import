@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,11 +32,13 @@ interface EventDialogProps {
         label?: string | null
         notes?: string | null
     }
+    defaultDate?: string // 新增：点击空白日期时传入
     onSuccess?: () => void
 }
 
-export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialogProps) {
+export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess }: EventDialogProps) {
     const [loading, setLoading] = useState(false)
+    const [deleting, setDeleting] = useState(false)
     const { toast } = useToast()
 
     const { register, handleSubmit, formState: { errors }, reset } = useForm<EventFormData>({
@@ -47,8 +49,39 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
             time: event.time || '',
             label: event.label || '',
             notes: event.notes || '',
+        } : defaultDate ? {
+            title: '',
+            date: defaultDate,
+            time: '',
+            label: '',
+            notes: '',
         } : undefined,
     })
+
+    // 当 dialog 打开时重置表单
+    useEffect(() => {
+        if (open) {
+            if (event) {
+                reset({
+                    title: event.title,
+                    date: event.date,
+                    time: event.time || '',
+                    label: event.label || '',
+                    notes: event.notes || '',
+                })
+            } else if (defaultDate) {
+                reset({
+                    title: '',
+                    date: defaultDate,
+                    time: '',
+                    label: '',
+                    notes: '',
+                })
+            } else {
+                reset()
+            }
+        }
+    }, [open, event, defaultDate, reset])
 
     const onSubmit = async (data: EventFormData) => {
         setLoading(true)
@@ -87,6 +120,38 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
         }
     }
 
+    const handleDelete = async () => {
+        if (!event) return
+        if (!confirm('Are you sure you want to delete this event?')) return
+
+        setDeleting(true)
+        try {
+            const res = await fetch(`/api/events/${event.id}`, {
+                method: 'DELETE',
+            })
+
+            if (!res.ok) {
+                throw new Error('Failed to delete event')
+            }
+
+            toast({
+                title: 'Event deleted',
+                description: `${event.title} has been deleted.`,
+            })
+
+            onOpenChange(false)
+            onSuccess?.()
+        } catch (err) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: err instanceof Error ? err.message : 'Failed to delete event',
+            })
+        } finally {
+            setDeleting(false)
+        }
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
@@ -96,7 +161,7 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div>
                         <Label htmlFor="title">Title *</Label>
-                        <Input id="title" {...register('title')} />
+                        <Input id="title" {...register('title')} placeholder="e.g., Contract renewal" />
                         {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title.message}</p>}
                     </div>
 
@@ -120,14 +185,25 @@ export function EventDialog({ open, onOpenChange, event, onSuccess }: EventDialo
 
                     <div>
                         <Label htmlFor="notes">Notes (optional)</Label>
-                        <Textarea id="notes" rows={3} {...register('notes')} />
+                        <Textarea id="notes" rows={3} {...register('notes')} placeholder="Add any additional notes..." />
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                    <DialogFooter className="gap-2">
+                        {event && (
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={handleDelete}
+                                disabled={loading || deleting}
+                                className="mr-auto"
+                            >
+                                {deleting ? 'Deleting...' : 'Delete'}
+                            </Button>
+                        )}
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading || deleting}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={loading}>
+                        <Button type="submit" disabled={loading || deleting}>
                             {loading ? 'Saving...' : event ? 'Update' : 'Create'}
                         </Button>
                     </DialogFooter>
