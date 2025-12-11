@@ -23,7 +23,7 @@ export default function CalendarPage() {
     const [loading, setLoading] = useState(false)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selectedEvent, setSelectedEvent] = useState<Event | undefined>()
-    const [selectedDate, setSelectedDate] = useState<string | null>(null)
+    const [defaultDate, setDefaultDate] = useState<string | undefined>()
 
     const fetchEvents = async (date: Date) => {
         setLoading(true)
@@ -66,7 +66,7 @@ export default function CalendarPage() {
 
     const handleDayClick = (day: Date) => {
         const dateStr = format(day, 'yyyy-MM-dd')
-        setSelectedDate(dateStr)
+        setDefaultDate(dateStr)
         setSelectedEvent(undefined)
         setDialogOpen(true)
     }
@@ -74,7 +74,7 @@ export default function CalendarPage() {
     const handleEventClick = (event: Event, e: React.MouseEvent) => {
         e.stopPropagation()
         setSelectedEvent(event)
-        setSelectedDate(null)
+        setDefaultDate(undefined)
         setDialogOpen(true)
     }
 
@@ -164,6 +164,7 @@ export default function CalendarPage() {
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
                 event={selectedEvent}
+                defaultDate={defaultDate}
                 onSuccess={() => fetchEvents(currentDate)}
             />
         </div>
