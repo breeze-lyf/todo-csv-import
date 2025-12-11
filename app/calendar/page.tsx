@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 import { EventDialog } from '@/components/EventDialog'
+import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt'
 
 interface Event {
     id: string
@@ -156,6 +157,8 @@ export default function CalendarPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <NotificationPermissionPrompt />
 
             <EventDialog
                 open={dialogOpen}
