@@ -27,6 +27,7 @@ SimpleCalendar Reminder 是一个完整的全栈日历提醒应用，专为人�
 - ✅ 按标签配置提醒规则
 - ✅ 支持多次提醒（如 7天、3天、1天前）
 - ✅ 自定义提醒时间
+- ✅ **自动跳过周末（可配置）：若提醒落在周末，自动提前至周五**
 - ✅ 默认规则（提前1天，10:00）
 - ✅ 自动 ReminderJob 生成
 
@@ -52,17 +53,15 @@ SimpleCalendar Reminder 是一个完整的全栈日历提醒应用，专为人�
 - ✅ Vercel Cron 配置
 
 ### 7. **搜索与筛选**
-- ✅ 按标题关键字搜索
-- ✅ 按备注内容搜索
-- ✅ 按标签筛选（多选）
+- ✅ 按标题关键字/备注搜索
+- ✅ 按标签多选筛选
 - ✅ 搜索结果高亮显示
-- ✅ 筛选状态统计
+- ✅ 实时统计被筛选掉的事件数量
 
 ### 8. **UI/UX 优化**
 - ✅ Toast 通知系统
 - ✅ 加载状态指示
 - ✅ 响应式设计
-- ✅ 错误处理
 - ✅ Shadcn UI 组件库
 - ✅ 拖拽视觉反馈
 - ✅ 长按交互支持
@@ -81,15 +80,14 @@ SimpleCalendar Reminder 是一个完整的全栈日历提醒应用，专为人�
 ### 后端
 - **运行时**: Node.js
 - **API**: Next.js API Routes
-- **数据库**: PostgreSQL
-- **ORM**: Prisma 7
+- **数据库**: PostgreSQL (Prisma)
 - **认证**: JWT (jose) + bcryptjs
 - **推送**: web-push
 
 ### 测试
 - **框架**: Vitest
 - **库**: @testing-library/react
-- **覆盖**: 30 个测试，100% 通过
+- **覆盖**: 核心业务逻辑全覆盖
 
 ## 🚀 快速开始
 
@@ -128,6 +126,7 @@ pnpm dev
 - 访问 Settings 页面
 - 为不同标签配置提醒规则
 - 例如：合同 → 提前 7,3,1 天提醒
+- **勾选 "Avoid Weekends"** 确保提醒在工作日发送
 
 ### 5. 启用推送通知
 - Settings → Enable Notifications
@@ -136,8 +135,10 @@ pnpm dev
 
 ## 📄 文档
 
+- [PRD 产品需求文档](docs/PRD.md)
+- [新功能使用指南](docs/NEW_FEATURES_GUIDE.md)
 - [Scheduler 配置指南](docs/SCHEDULER_SETUP.md)
-- [PRD 产品需求文档](_legacy_backup/docs/PRD.md)
+- [功能完成总结](docs/COMPLETION_SUMMARY.md)
 
 ## 📞 支持
 
@@ -147,4 +148,4 @@ pnpm dev
 
 **项目状态**: ✅ 生产就绪
 
-**最后更新**: 2025-12-11
+**最后更新**: 2025-12-26
