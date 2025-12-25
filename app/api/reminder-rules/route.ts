@@ -7,6 +7,7 @@ const reminderRuleSchema = z.object({
     label: z.string().min(1),
     offsetsInDays: z.array(z.number().int().nonnegative()),
     defaultTime: z.string().regex(/^\d{2}:\d{2}$/),
+    avoidWeekends: z.boolean().default(false),
 })
 
 export async function GET(req: NextRequest) {
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid input', details: result.error }, { status: 400 })
         }
 
-        const { label, offsetsInDays, defaultTime } = result.data
+        const { label, offsetsInDays, defaultTime, avoidWeekends } = result.data
 
         // Check if rule already exists for this label
         const existingRule = await prisma.reminderRule.findFirst({
@@ -76,8 +77,28 @@ export async function POST(req: NextRequest) {
                 label,
                 offsetsInDays,
                 defaultTime,
+                avoidWeekends,
             },
         })
+
+        // Sync existing events with this label
+        const { generateReminderJobs } = await import('@/lib/reminder-jobs')
+        const events = await prisma.event.findMany({
+            where: {
+                userId: payload.userId as string,
+                label: label,
+            },
+        })
+
+        for (const event of events) {
+            await generateReminderJobs({
+                id: event.id,
+                userId: event.userId,
+                date: event.date,
+                time: event.time,
+                label: event.label,
+            })
+        }
 
         return NextResponse.json({ rule }, { status: 201 })
     } catch (error) {

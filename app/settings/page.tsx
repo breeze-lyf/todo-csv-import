@@ -6,27 +6,44 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/hooks/use-toast'
+
+import { ReminderRuleDialog } from '@/components/ReminderRuleDialog'
 
 interface ReminderRule {
     id: string
     label: string
     offsetsInDays: number[]
     defaultTime: string
+    avoidWeekends: boolean
 }
 
 export default function SettingsPage() {
     const router = useRouter()
+    const { toast } = useToast()
     const [rules, setRules] = useState<ReminderRule[]>([])
     const [loading, setLoading] = useState(true)
-    const [newRule, setNewRule] = useState({
-        label: '',
-        offsetsInDays: '7,3,1',
-        defaultTime: '10:00',
-    })
+    const [notificationStatus, setNotificationStatus] = useState<'unsupported' | 'default' | 'granted' | 'denied'>('default')
+
+    // Dialog state
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [selectedRule, setSelectedRule] = useState<ReminderRule | undefined>()
 
     useEffect(() => {
         fetchRules()
+        refreshNotificationStatus()
     }, [])
+
+    const refreshNotificationStatus = () => {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+            setNotificationStatus('unsupported')
+            return
+        }
+        const status = Notification.permission as PermissionState
+        if (status === 'granted') setNotificationStatus('granted')
+        else if (status === 'denied') setNotificationStatus('denied')
+        else setNotificationStatus('default')
+    }
 
     const fetchRules = async () => {
         try {
@@ -42,35 +59,9 @@ export default function SettingsPage() {
         }
     }
 
-    const handleCreateRule = async () => {
-        try {
-            const offsetsArray = newRule.offsetsInDays.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n))
-
-            const res = await fetch('/api/reminder-rules', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    label: newRule.label,
-                    offsetsInDays: offsetsArray,
-                    defaultTime: newRule.defaultTime,
-                }),
-            })
-
-            if (res.ok) {
-                setNewRule({ label: '', offsetsInDays: '7,3,1', defaultTime: '10:00' })
-                fetchRules()
-            } else {
-                const data = await res.json()
-                alert('Failed to create rule: ' + data.error)
-            }
-        } catch (error) {
-            console.error('Create rule error:', error)
-            alert('Failed to create rule')
-        }
-    }
-
-    const handleDeleteRule = async (id: string) => {
-        if (!confirm('Delete this rule?')) return
+    const handleDeleteRule = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation() // Prevent opening the dialog
+        if (!confirm('确认删除这条提醒规则？')) return
 
         try {
             const res = await fetch(`/api/reminder-rules/${id}`, {
@@ -79,99 +70,103 @@ export default function SettingsPage() {
 
             if (res.ok) {
                 fetchRules()
+                toast({ title: '已删除', description: '提醒规则已移除' })
             }
         } catch (error) {
             console.error('Delete rule error:', error)
         }
     }
 
+    const handleEditRule = (rule: ReminderRule) => {
+        setSelectedRule(rule)
+        setDialogOpen(true)
+    }
+
+    const handleAddRule = () => {
+        setSelectedRule(undefined)
+        setDialogOpen(true)
+    }
+
+    // ... (keep requestNotificationPermission, subscribeToPush, triggerTestNotification unchanged)
     const requestNotificationPermission = async () => {
+        // ... (existing code)
         console.log('[Push] Button clicked - starting permission request...')
-
-        // Check browser support
         if (!('Notification' in window)) {
-            console.error('[Push] Notification API not supported')
-            alert('❌ This browser does not support notifications')
+            alert('❌ 当前浏览器不支持通知')
+            setNotificationStatus('unsupported')
             return
         }
-
         if (!('serviceWorker' in navigator)) {
-            console.error('[Push] Service Worker not supported')
-            alert('❌ Service Worker is not supported in this browser')
+            alert('❌ 当前浏览器不支持 Service Worker')
+            setNotificationStatus('unsupported')
             return
         }
-
-        console.log('[Push] Current permission:', Notification.permission)
-
-        // If already granted, just subscribe
         if (Notification.permission === 'granted') {
-            console.log('[Push] Permission already granted, subscribing...')
             await subscribeToPush()
             return
         }
-
-        // If denied, show instructions
         if (Notification.permission === 'denied') {
-            alert('❌ Notifications are blocked. Please enable them in your browser settings:\n\n1. Click the lock icon in the address bar\n2. Find "Notifications"\n3. Change to "Allow"')
+            alert('❌ 通知被阻止，请在浏览器设置中开启')
             return
         }
-
-        // Request permission (must be in direct response to user action)
         try {
-            console.log('[Push] Requesting permission NOW...')
             const permission = await Notification.requestPermission()
-            console.log('[Push] Permission result:', permission)
-
             if (permission === 'granted') {
-                console.log('[Push] Permission granted! Subscribing...')
                 await subscribeToPush()
+                setNotificationStatus('granted')
             } else {
-                alert('❌ Notification permission denied')
+                setNotificationStatus('denied')
             }
         } catch (error) {
             console.error('[Push] Permission request error:', error)
-            alert('❌ Failed to request permission: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 
     const subscribeToPush = async () => {
         try {
-            // Wait for service worker
-            console.log('[Push] Waiting for Service Worker...')
             const registration = await navigator.serviceWorker.ready
-            console.log('[Push] Service Worker ready')
-
-            // Get VAPID key
-            console.log('[Push] Fetching VAPID key...')
             const keyRes = await fetch('/api/push/vapid-public-key')
-            if (!keyRes.ok) throw new Error('Failed to fetch VAPID key')
-
             const { publicKey } = await keyRes.json()
-            console.log('[Push] VAPID key received')
-
-            // Subscribe
-            console.log('[Push] Creating subscription...')
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: publicKey,
             })
-            console.log('[Push] Subscription created')
-
-            // Save to server
-            console.log('[Push] Saving subscription...')
-            const res = await fetch('/api/push/subscribe', {
+            await fetch('/api/push/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(subscription.toJSON()),
             })
-
-            if (!res.ok) throw new Error('Failed to save subscription')
-
-            console.log('[Push] ✅ Success!')
-            alert('✅ Push notifications enabled successfully!')
+            setNotificationStatus('granted')
         } catch (error) {
             console.error('[Push] Subscription error:', error)
-            alert('❌ Failed to enable push: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+
+    const triggerTestNotification = async () => {
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+            toast({ variant: 'destructive', title: '不支持通知' })
+            return
+        }
+        if (Notification.permission === 'default') {
+            await Notification.requestPermission()
+            refreshNotificationStatus()
+        }
+        if (Notification.permission === 'denied') {
+            toast({ variant: 'destructive', title: '通知被拒绝' })
+            return
+        }
+        const options: NotificationOptions = {
+            body: '这是一个示例提醒',
+            tag: 'demo-notification',
+            requireInteraction: true,
+            icon: '/favicon.ico',
+        }
+        try {
+            const registration = await navigator.serviceWorker.ready
+            await registration.showNotification('测试提醒', options)
+            toast({ title: '测试提醒已发送' })
+        } catch (err) {
+            console.error(err)
         }
     }
 
@@ -179,99 +174,113 @@ export default function SettingsPage() {
         <div className="p-8 min-h-screen bg-gray-50">
             <div className="max-w-4xl mx-auto space-y-6">
                 <div className="flex justify-between items-center">
-                    <h1 className="text-3xl font-bold">Settings</h1>
+                    <h1 className="text-3xl font-bold">提醍设置</h1>
                     <Button variant="outline" onClick={() => router.push('/calendar')}>
-                        Back to Calendar
+                        返回日历
                     </Button>
                 </div>
 
                 {/* Notification Settings */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Push Notifications</CardTitle>
+                        <CardTitle>浏览器通知</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-gray-600 mb-4">
-                            Enable browser notifications to receive reminders even when the app is closed.
+                            开启浏览器通知，关闭页面也能收到提醒。
                         </p>
-                        <Button onClick={requestNotificationPermission}>
-                            Enable Notifications
-                        </Button>
+                        <div className="flex gap-3 flex-wrap">
+                            <Button
+                                onClick={requestNotificationPermission}
+                                variant={notificationStatus === 'granted' ? 'secondary' : 'default'}
+                                disabled={notificationStatus === 'unsupported' || notificationStatus === 'granted'}
+                            >
+                                {notificationStatus === 'unsupported' && '浏览器不支持'}
+                                {notificationStatus === 'granted' && '已开启通知'}
+                                {notificationStatus === 'denied' && '已被拒绝，去浏览器设置开启'}
+                                {notificationStatus === 'default' && '开启通知'}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={triggerTestNotification}
+                                disabled={notificationStatus === 'unsupported'}
+                            >
+                                测试提醒
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
 
                 {/* Reminder Rules */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Reminder Rules</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <CardTitle>提醒规则</CardTitle>
+                        <Button onClick={handleAddRule} size="sm">新增规则</Button>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Configure how many days before an event you want to be reminded, based on event labels.
-                            </p>
+                    <CardContent>
+                        <p className="text-sm text-gray-600 mb-4">
+                            可按标签设置提前多少天提醒，以及默认提醒时间。点击条目可修改。
+                        </p>
 
-                            {loading ? (
-                                <p>Loading...</p>
-                            ) : rules.length === 0 ? (
-                                <p className="text-sm text-gray-500">No custom rules. Using default: 1 day before at 10:00</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {rules.map(rule => (
-                                        <div key={rule.id} className="flex items-center justify-between p-3 border rounded">
-                                            <div>
-                                                <p className="font-semibold">{rule.label}</p>
-                                                <p className="text-sm text-gray-600">
-                                                    Remind {rule.offsetsInDays.join(', ')} days before at {rule.defaultTime}
-                                                </p>
+                        {loading ? (
+                            <p>加载中...</p>
+                        ) : rules.length === 0 ? (
+                            <p className="text-sm text-gray-500">暂无自定义规则。默认：提前 1 天，时间 10:00。</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {rules.map(rule => (
+                                    <div
+                                        key={rule.id}
+                                        onClick={() => handleEditRule(rule)}
+                                        className="flex items-center justify-between p-4 bg-white border rounded-lg hover:border-blue-400 hover:shadow-sm transition-all cursor-pointer group"
+                                    >
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="font-bold text-lg">{rule.label}</p>
+                                                {rule.avoidWeekends && (
+                                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">跳过周末</span>
+                                                )}
+                                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase font-medium opacity-0 group-hover:opacity-100 transition-opacity">点击修改</span>
                                             </div>
-                                            <Button variant="destructive" size="sm" onClick={() => handleDeleteRule(rule.id)}>
-                                                Delete
+                                            <p className="text-sm text-gray-500 font-medium">
+                                                提前 <span className="text-blue-600">{rule.offsetsInDays.join(', ')}</span> 天，提醒时间 <span className="text-blue-600">{rule.defaultTime}</span>
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEditRule(rule);
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                修改
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={(e) => handleDeleteRule(e, rule.id)}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                删除
                                             </Button>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="border-t pt-4">
-                            <h3 className="font-semibold mb-3">Add New Rule</h3>
-                            <div className="grid gap-4">
-                                <div>
-                                    <Label htmlFor="label">Label</Label>
-                                    <Input
-                                        id="label"
-                                        placeholder="e.g., Contract, Certificate"
-                                        value={newRule.label}
-                                        onChange={(e) => setNewRule({ ...newRule, label: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="offsets">Days Before (comma-separated)</Label>
-                                    <Input
-                                        id="offsets"
-                                        placeholder="e.g., 7,3,1"
-                                        value={newRule.offsetsInDays}
-                                        onChange={(e) => setNewRule({ ...newRule, offsetsInDays: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="time">Default Time</Label>
-                                    <Input
-                                        id="time"
-                                        type="time"
-                                        value={newRule.defaultTime}
-                                        onChange={(e) => setNewRule({ ...newRule, defaultTime: e.target.value })}
-                                    />
-                                </div>
-                                <Button onClick={handleCreateRule} disabled={!newRule.label}>
-                                    Add Rule
-                                </Button>
+                                    </div>
+                                ))}
                             </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
+
+            <ReminderRuleDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                rule={selectedRule}
+                onSuccess={fetchRules}
+            />
         </div>
     )
 }

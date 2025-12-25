@@ -32,6 +32,7 @@ export async function generateReminderJobs(event: Event) {
     // Use default rule if no custom rule found
     const offsetsInDays = rule?.offsetsInDays || [1]
     const defaultTime = rule?.defaultTime || '10:00'
+    const avoidWeekends = rule?.avoidWeekends || false
     const eventTime = event.time || defaultTime
 
     // Parse event date
@@ -41,6 +42,16 @@ export async function generateReminderJobs(event: Event) {
     const jobs = offsetsInDays.map((offset) => {
         const fireTime = new Date(eventDate)
         fireTime.setDate(fireTime.getDate() - offset)
+
+        // Adjust to Friday if it lands on a weekend and avoidWeekends is on
+        if (avoidWeekends) {
+            const dayOfWeek = fireTime.getDay() // 0 is Sunday, 6 is Saturday
+            if (dayOfWeek === 0) { // Sunday
+                fireTime.setDate(fireTime.getDate() - 2) // Move to Friday
+            } else if (dayOfWeek === 6) { // Saturday
+                fireTime.setDate(fireTime.getDate() - 1) // Move to Friday
+            }
+        }
 
         return {
             userId: event.userId,

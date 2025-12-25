@@ -12,12 +12,12 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import Link from 'next/link'
 
 const registerSchema = z.object({
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    email: z.string().email('邮箱格式不正确'),
+    password: z.string().min(6, '密码至少 6 位'),
     confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
+    message: '两次密码不一致',
+    path: ['confirmPassword'],
 })
 
 type RegisterFormValues = z.infer<typeof registerSchema>
@@ -50,7 +50,7 @@ export default function RegisterPage() {
             const json = await res.json()
 
             if (!res.ok) {
-                setError(json.error || 'Registration failed')
+                setError(json.error || '注册失败')
                 return
             }
 
@@ -58,7 +58,7 @@ export default function RegisterPage() {
             // Redirect to login after short delay
             setTimeout(() => router.push('/login'), 1500)
         } catch (err) {
-            setError('Something went wrong')
+            setError('系统异常，请稍后重试')
         }
     }
 
@@ -66,13 +66,13 @@ export default function RegisterPage() {
         <div className="flex h-screen items-center justify-center bg-gray-50">
             <Card className="w-[350px]">
                 <CardHeader>
-                    <CardTitle className="text-center">Create Account</CardTitle>
+                    <CardTitle className="text-center">注册账号</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {success ? (
                         <div className="text-center text-green-600 space-y-2">
-                            <p>Registration successful!</p>
-                            <p className="text-sm">Redirecting to login...</p>
+                            <p>注册成功！</p>
+                            <p className="text-sm">即将跳转到登录...</p>
                         </div>
                     ) : (
                         <Form {...form}>
@@ -82,9 +82,9 @@ export default function RegisterPage() {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Email</FormLabel>
+                                            <FormLabel>邮箱</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Enter your email" {...field} />
+                                                <Input placeholder="请输入邮箱" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -95,9 +95,9 @@ export default function RegisterPage() {
                                     name="password"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Password</FormLabel>
+                                            <FormLabel>密码</FormLabel>
                                             <FormControl>
-                                                <Input type="password" placeholder="Create a password" {...field} />
+                                                <Input type="password" placeholder="请设置密码" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -108,9 +108,9 @@ export default function RegisterPage() {
                                     name="confirmPassword"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Confirm Password</FormLabel>
+                                            <FormLabel>确认密码</FormLabel>
                                             <FormControl>
-                                                <Input type="password" placeholder="Confirm your password" {...field} />
+                                                <Input type="password" placeholder="请再次输入密码" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -120,7 +120,7 @@ export default function RegisterPage() {
                                 {error && <div className="text-sm text-red-500">{error}</div>}
 
                                 <Button type="submit" className="w-full">
-                                    Sign Up
+                                    注册
                                 </Button>
                             </form>
                         </Form>
@@ -128,7 +128,7 @@ export default function RegisterPage() {
                 </CardContent>
                 <CardFooter className="justify-center">
                     <Link href="/login" className="text-sm text-blue-600 hover:underline">
-                        Already have an account? Sign In
+                        已有账号？去登录
                     </Link>
                 </CardFooter>
             </Card>

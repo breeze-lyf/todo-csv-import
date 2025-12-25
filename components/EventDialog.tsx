@@ -12,8 +12,8 @@ import { z } from 'zod'
 import { useToast } from '@/hooks/use-toast'
 
 const eventSchema = z.object({
-    title: z.string().min(1, 'Title is required'),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+    title: z.string().min(1, '标题必填'),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式需为 YYYY-MM-DD'),
     time: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal('')),
     label: z.string().optional(),
     notes: z.string().optional(),
@@ -86,6 +86,18 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
     const onSubmit = async (data: EventFormData) => {
         setLoading(true)
 
+        // 确保日期格式为 YYYY-MM-DD，即使在某些浏览器环境下显示不同
+        const formattedDate = data.date.replace(/\//g, '-')
+
+        // 清理数据：将空字符串转换为 null，确保后端校验通过
+        const payloadData = {
+            ...data,
+            date: formattedDate,
+            time: data.time || null,
+            label: data.label || null,
+            notes: data.notes || null,
+        }
+
         try {
             const url = event ? `/api/events/${event.id}` : '/api/events'
             const method = event ? 'PUT' : 'POST'
@@ -93,7 +105,7 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(payloadData),
             })
 
             if (!res.ok) {
@@ -102,8 +114,8 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
             }
 
             toast({
-                title: event ? 'Event updated' : 'Event created',
-                description: `${data.title} has been ${event ? 'updated' : 'created'} successfully.`,
+                title: event ? '日程已更新' : '日程已创建',
+                description: `${data.title} 已${event ? '更新' : '创建'}。`,
             })
 
             reset()
@@ -112,8 +124,8 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
         } catch (err) {
             toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: err instanceof Error ? err.message : 'Something went wrong',
+                title: '出错了',
+                description: err instanceof Error ? err.message : '提交失败，请稍后重试',
             })
         } finally {
             setLoading(false)
@@ -122,7 +134,7 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
 
     const handleDelete = async () => {
         if (!event) return
-        if (!confirm('Are you sure you want to delete this event?')) return
+        if (!confirm('确定要删除这个日程吗？')) return
 
         setDeleting(true)
         try {
@@ -135,8 +147,8 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
             }
 
             toast({
-                title: 'Event deleted',
-                description: `${event.title} has been deleted.`,
+                title: '日程已删除',
+                description: `${event.title} 已删除。`,
             })
 
             onOpenChange(false)
@@ -144,8 +156,8 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
         } catch (err) {
             toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: err instanceof Error ? err.message : 'Failed to delete event',
+                title: '删除失败',
+                description: err instanceof Error ? err.message : '删除日程时出错',
             })
         } finally {
             setDeleting(false)
@@ -156,36 +168,36 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>{event ? 'Edit Event' : 'New Event'}</DialogTitle>
+                    <DialogTitle>{event ? '编辑日程' : '新建日程'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div>
-                        <Label htmlFor="title">Title *</Label>
-                        <Input id="title" {...register('title')} placeholder="e.g., Contract renewal" />
+                        <Label htmlFor="title">标题 *</Label>
+                        <Input id="title" {...register('title')} placeholder="例：合同续签" />
                         {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title.message}</p>}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="date">Date *</Label>
+                            <Label htmlFor="date">日期 *</Label>
                             <Input id="date" type="date" {...register('date')} />
                             {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date.message}</p>}
                         </div>
                         <div>
-                            <Label htmlFor="time">Time (optional)</Label>
+                            <Label htmlFor="time">时间（可选）</Label>
                             <Input id="time" type="time" {...register('time')} />
                             {errors.time && <p className="text-sm text-red-500 mt-1">{errors.time.message}</p>}
                         </div>
                     </div>
 
                     <div>
-                        <Label htmlFor="label">Label (optional)</Label>
-                        <Input id="label" placeholder="e.g., Contract, Certificate" {...register('label')} />
+                        <Label htmlFor="label">标签（可选）</Label>
+                        <Input id="label" placeholder="例：合同、证书" {...register('label')} />
                     </div>
 
                     <div>
-                        <Label htmlFor="notes">Notes (optional)</Label>
-                        <Textarea id="notes" rows={3} {...register('notes')} placeholder="Add any additional notes..." />
+                        <Label htmlFor="notes">备注（可选）</Label>
+                        <Textarea id="notes" rows={3} {...register('notes')} placeholder="填写额外说明..." />
                     </div>
 
                     <DialogFooter className="gap-2">
@@ -197,14 +209,14 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
                                 disabled={loading || deleting}
                                 className="mr-auto"
                             >
-                                {deleting ? 'Deleting...' : 'Delete'}
+                                {deleting ? '删除中...' : '删除'}
                             </Button>
                         )}
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading || deleting}>
-                            Cancel
+                            取消
                         </Button>
                         <Button type="submit" disabled={loading || deleting}>
-                            {loading ? 'Saving...' : event ? 'Update' : 'Create'}
+                            {loading ? '保存中...' : event ? '保存修改' : '创建'}
                         </Button>
                     </DialogFooter>
                 </form>

@@ -123,7 +123,7 @@ describe('Reminder Rules API', () => {
             })
             req.cookies.set('token', 'valid_token')
 
-            const res = await updateRule(req, { params: { id: 'rule1' } })
+            const res = await updateRule(req, { params: Promise.resolve({ id: 'rule1' }) })
 
             expect(res.status).toBe(200)
         })
@@ -145,7 +145,7 @@ describe('Reminder Rules API', () => {
             })
             req.cookies.set('token', 'valid_token')
 
-            const res = await deleteRule(req, { params: { id: 'rule1' } })
+            const res = await deleteRule(req, { params: Promise.resolve({ id: 'rule1' }) })
 
             expect(res.status).toBe(200)
         })

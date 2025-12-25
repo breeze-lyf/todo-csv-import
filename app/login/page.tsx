@@ -11,8 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 
 const loginSchema = z.object({
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(1, 'Password is required'),
+    email: z.string().email('邮箱格式不正确'),
+    password: z.string().min(1, '密码不能为空'),
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
@@ -43,13 +43,13 @@ export default function LoginPage() {
             const json = await res.json()
 
             if (!res.ok) {
-                setError(json.error || 'Login failed')
+                setError(json.error || '登录失败')
                 return
             }
 
             router.push('/calendar')
         } catch (err) {
-            setError('Something went wrong')
+            setError('系统异常，请稍后重试')
         }
     }
 
@@ -57,7 +57,7 @@ export default function LoginPage() {
         <div className="flex h-screen items-center justify-center bg-gray-50">
             <Card className="w-[350px]">
                 <CardHeader>
-                    <CardTitle className="text-center">Sign In</CardTitle>
+                    <CardTitle className="text-center">登录</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Form {...form}>
@@ -67,9 +67,9 @@ export default function LoginPage() {
                                 name="email"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Email</FormLabel>
+                                        <FormLabel>邮箱</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Enter your email" {...field} />
+                                            <Input placeholder="请输入邮箱" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -80,9 +80,9 @@ export default function LoginPage() {
                                 name="password"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Password</FormLabel>
+                                        <FormLabel>密码</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Enter your password" {...field} />
+                                            <Input type="password" placeholder="请输入密码" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -92,14 +92,14 @@ export default function LoginPage() {
                             {error && <div className="text-sm text-red-500">{error}</div>}
 
                             <Button type="submit" className="w-full">
-                                Sign In
+                                登录
                             </Button>
                         </form>
                     </Form>
                 </CardContent>
                 <div className="p-6 pt-0 flex justify-center">
                     <a href="/register" className="text-sm text-blue-600 hover:underline">
-                        Don't have an account? Sign Up
+                        还没有账号？注册
                     </a>
                 </div>
             </Card>

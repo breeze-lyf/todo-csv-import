@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST as createEvent, PUT as updateEvent, DELETE as deleteEvent } from '@/app/api/events/[id]/route'
+import { PUT as updateEvent, DELETE as deleteEvent } from '@/app/api/events/[id]/route'
 import { prisma } from '@/lib/prisma'
 import { NextRequest } from 'next/server'
 import { verifyToken } from '@/lib/auth'
@@ -103,7 +103,7 @@ describe('Event CRUD API', () => {
             })
             req.cookies.set('token', 'valid_token')
 
-            const res = await updateEvent(req, { params: { id: 'event1' } })
+            const res = await updateEvent(req, { params: Promise.resolve({ id: 'event1' }) })
 
             expect(res.status).toBe(200)
         })
@@ -118,7 +118,7 @@ describe('Event CRUD API', () => {
             })
             req.cookies.set('token', 'valid_token')
 
-            const res = await updateEvent(req, { params: { id: 'nonexistent' } })
+            const res = await updateEvent(req, { params: Promise.resolve({ id: 'nonexistent' }) })
 
             expect(res.status).toBe(404)
         })
@@ -140,7 +140,7 @@ describe('Event CRUD API', () => {
             })
             req.cookies.set('token', 'valid_token')
 
-            const res = await deleteEvent(req, { params: { id: 'event1' } })
+            const res = await deleteEvent(req, { params: Promise.resolve({ id: 'event1' }) })
 
             expect(res.status).toBe(200)
         })
@@ -158,7 +158,7 @@ describe('Event CRUD API', () => {
             })
             req.cookies.set('token', 'valid_token')
 
-            const res = await deleteEvent(req, { params: { id: 'event1' } })
+            const res = await deleteEvent(req, { params: Promise.resolve({ id: 'event1' }) })
 
             expect(res.status).toBe(403)
         })

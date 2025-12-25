@@ -7,14 +7,14 @@ import { z } from 'zod'
 const eventUpdateSchema = z.object({
     title: z.string().min(1).optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    time: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+    time: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable().or(z.literal('')),
     label: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
 })
 
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const token = req.cookies.get('token')?.value
@@ -27,7 +27,10 @@ export async function PUT(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const eventId = params.id
+        const { id: eventId } = await params
+        if (!eventId) {
+            return NextResponse.json({ error: 'Event ID is required' }, { status: 400 })
+        }
 
         // Check if event exists and belongs to user
         const existingEvent = await prisma.event.findUnique({
@@ -72,7 +75,7 @@ export async function PUT(
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const token = req.cookies.get('token')?.value
@@ -85,7 +88,10 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const eventId = params.id
+        const { id: eventId } = await params
+        if (!eventId) {
+            return NextResponse.json({ error: 'Event ID is required' }, { status: 400 })
+        }
 
         // Check if event exists and belongs to user
         const existingEvent = await prisma.event.findUnique({
