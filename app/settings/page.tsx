@@ -89,56 +89,101 @@ export default function SettingsPage() {
 
     // ... (keep requestNotificationPermission, subscribeToPush, triggerTestNotification unchanged)
     const requestNotificationPermission = async () => {
-        // ... (existing code)
-        console.log('[Push] Button clicked - starting permission request...')
+        toast({ title: '正在请求通知权限...', description: '请查看浏览器弹窗并选择“允许”' })
+
         if (!('Notification' in window)) {
-            alert('❌ 当前浏览器不支持通知')
+            toast({ variant: 'destructive', title: '不支持通知', description: '当前浏览器不支持原生通知功能' })
             setNotificationStatus('unsupported')
             return
         }
         if (!('serviceWorker' in navigator)) {
-            alert('❌ 当前浏览器不支持 Service Worker')
+            toast({ variant: 'destructive', title: '不支持 Service Worker', description: '当前浏览器环境无法启用消息推送' })
             setNotificationStatus('unsupported')
             return
         }
+
         if (Notification.permission === 'granted') {
+            toast({ title: '权限已授予', description: '正在配置消息推送...' })
             await subscribeToPush()
             return
         }
+
         if (Notification.permission === 'denied') {
-            alert('❌ 通知被阻止，请在浏览器设置中开启')
+            toast({
+                variant: 'destructive',
+                title: '通知权限已被拒绝',
+                description: '请在浏览器地址栏左侧点击“锁”图标，重置权限后重试。'
+            })
+            setNotificationStatus('denied')
             return
         }
+
         try {
+            // Safari and older browsers might use callback, but standard Promise is preferred
             const permission = await Notification.requestPermission()
+
             if (permission === 'granted') {
+                toast({ title: '授权成功', description: '正在完成最后一步配置...' })
                 await subscribeToPush()
                 setNotificationStatus('granted')
             } else {
-                setNotificationStatus('denied')
+                toast({
+                    variant: 'destructive',
+                    title: '权限未授予',
+                    description: `当前状态为: ${permission}`
+                })
+                setNotificationStatus(permission === 'denied' ? 'denied' : 'default')
             }
         } catch (error) {
             console.error('[Push] Permission request error:', error)
+            toast({
+                variant: 'destructive',
+                title: '请求出错',
+                description: error instanceof Error ? error.message : '请刷新页面重试'
+            })
         }
     }
 
     const subscribeToPush = async () => {
         try {
+            // Check if SW is ready
             const registration = await navigator.serviceWorker.ready
+
+            // Fetch VAPID Key
             const keyRes = await fetch('/api/push/vapid-public-key')
+            if (!keyRes.ok) {
+                const errorData = await keyRes.json()
+                throw new Error(errorData.error || '无法获取 VAPID 公钥')
+            }
+
             const { publicKey } = await keyRes.json()
+            if (!publicKey) throw new Error('VAPID 公钥配置错误')
+
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: publicKey,
             })
-            await fetch('/api/push/subscribe', {
+
+            const res = await fetch('/api/push/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(subscription.toJSON()),
             })
-            setNotificationStatus('granted')
+
+            if (res.ok) {
+                toast({ title: '通知开启成功', description: '您现在可以接收日程提醒了' })
+                setNotificationStatus('granted')
+            } else {
+                const errorData = await res.json()
+                throw new Error(errorData.error || '服务器保存订阅失败')
+            }
         } catch (error) {
             console.error('[Push] Subscription error:', error)
+            toast({
+                variant: 'destructive',
+                title: '订阅通知失败',
+                description: error instanceof Error ? error.message : '请刷新页面重试'
+            })
         }
     }
 
