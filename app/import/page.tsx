@@ -39,7 +39,14 @@ export default function ImportPage() {
             complete: (results) => {
                 const parsed: ParsedEvent[] = results.data.map((row: any, index) => {
                     const rawDate = row.date || row['日期'] || row.Date || ''
-                    const normalizedDate = rawDate ? String(rawDate).replace(/\//g, '-') : ''
+                    let normalizedDate = ''
+                    if (rawDate) {
+                        const parts = String(rawDate).split(/[/-]/)
+                        if (parts.length === 3) {
+                            const [y, m, d] = parts
+                            normalizedDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+                        }
+                    }
                     const rawTime = row.time || row['时间'] || row.Time || ''
                     let normalizedTime = rawTime ? String(rawTime) : undefined
                     if (normalizedTime && /^\d:\d{2}$/.test(normalizedTime)) {
@@ -182,7 +189,7 @@ export default function ImportPage() {
                                         </tbody>
                                     </table>
                                 </div>
-                                </div>
+                            </div>
 
                             <div className="flex justify-between items-center">
                                 <div className="text-sm text-gray-600">
