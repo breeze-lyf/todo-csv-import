@@ -23,7 +23,7 @@ export default function ImportPage() {
     const [events, setEvents] = useState<ParsedEvent[]>([])
     const [importing, setImporting] = useState(false)
     const [result, setResult] = useState<{ created: number; failed: number } | null>(null)
-    const templateUrl = '/templates/events-template.csv'
+    const templateUrl = '/templates/events-template-v2.csv'
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0]
@@ -180,18 +180,27 @@ export default function ImportPage() {
                                 <span className="w-1 h-1 bg-blue-500 rounded-full" />
                                 上传文件
                             </h3>
-                            <div className="relative group">
+                            <div className="relative group h-32 w-full">
+                                <div className="absolute inset-0 bg-white/50 border-2 border-dashed border-black/5 rounded-[2rem] group-hover:border-blue-400 group-hover:bg-blue-50/10 transition-all flex flex-col items-center justify-center p-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                        <FileUp className="h-6 w-6" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-blue-600 transition-colors">
+                                        选择或拖拽 CSV 文件
+                                    </span>
+                                    {file && (
+                                        <span className="mt-1 text-[11px] font-bold text-emerald-600 truncate max-w-full px-4">
+                                            已选择: {file.name}
+                                        </span>
+                                    )}
+                                </div>
                                 <Input
                                     type="file"
                                     accept=".csv"
                                     onChange={handleFileChange}
                                     disabled={importing}
-                                    className="h-20 px-6 bg-white/50 border-2 border-dashed border-black/5 rounded-3xl cursor-pointer hover:border-blue-400/50 transition-all flex items-center pt-7 text-gray-500 font-medium shadow-none"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
-                                <div className="absolute inset-x-0 top-3 pointer-events-none flex flex-col items-center justify-center text-gray-400 group-hover:text-blue-500 transition-colors">
-                                    <FileUp className="h-6 w-6 mb-1 opacity-20" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">选择或拖拽 CSV 文件</span>
-                                </div>
                             </div>
                         </div>
                     </div>
