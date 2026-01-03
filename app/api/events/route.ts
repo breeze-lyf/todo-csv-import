@@ -219,6 +219,29 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 5.5 Auto-create Reminder Rule if label is new
+        if (label) {
+            try {
+                const existingRule = await (prisma as any).reminderRule.findUnique({
+                    where: { userId_label: { userId, label } }
+                })
+                if (!existingRule) {
+                    console.log(`[POST] Creating default reminder rule for new label: ${label}`)
+                    await (prisma as any).reminderRule.create({
+                        data: {
+                            userId,
+                            label,
+                            offsetsInDays: [],
+                            defaultTime: '10:00',
+                            avoidWeekends: false,
+                        }
+                    })
+                }
+            } catch (ruleErr) {
+                console.error('[POST] Failed to auto-create reminder rule (silently skipping):', ruleErr)
+            }
+        }
+
         console.log('[POST] Success, Event ID:', eventResult.id)
 
         // 6. Reminder Jobs (Non-blocking)

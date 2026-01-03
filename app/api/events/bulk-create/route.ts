@@ -48,6 +48,13 @@ export async function POST(req: NextRequest) {
         })
         const existingByTitle = new Map(existingEvents.map(e => [e.title, e]))
 
+        // Prefetch reminder rules for these labels
+        const uniqueLabels = Array.from(new Set(events.map(e => e.label).filter(Boolean))) as string[]
+        const existingRules = await prisma.reminderRule.findMany({
+            where: { userId, label: { in: uniqueLabels } }
+        })
+        const knownLabels = new Set(existingRules.map(r => r.label))
+
         // Create all events
         const createdEvents = []
         const updatedEvents = []
@@ -111,6 +118,26 @@ export async function POST(req: NextRequest) {
 
                 // Keep map updated so later duplicates in the same import overwrite the latest
                 existingByTitle.set(eventData.title, event)
+
+                // Auto-create Reminder Rule if label is new
+                if (eventData.label && !knownLabels.has(eventData.label)) {
+                    try {
+                        await (prisma as any).reminderRule.create({
+                            data: {
+                                userId,
+                                label: eventData.label,
+                                offsetsInDays: [],
+                                defaultTime: '10:00',
+                                avoidWeekends: false,
+                            }
+                        })
+                        knownLabels.add(eventData.label)
+                        console.log(`[Bulk Create] Created default reminder rule for new label: ${eventData.label}`)
+                    } catch (ruleErr) {
+                        console.error('[Bulk Create] Failed to auto-create reminder rule:', ruleErr)
+                        knownLabels.add(eventData.label) // Avoid retrying for this label in the same batch
+                    }
+                }
 
                 // Generate reminder jobs
                 try {

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import { EventDialog } from '@/components/EventDialog'
 import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt'
-import { Search, X } from 'lucide-react'
+import { Search, X, LogOut, User } from 'lucide-react'
 
 interface Event {
     id: string
@@ -132,6 +132,15 @@ export default function CalendarPage() {
 
         setDefaultDate(undefined)
         setDialogOpen(true)
+    }
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' })
+            router.push('/login')
+        } catch (error) {
+            console.error('Logout failed', error)
+        }
     }
 
     const handleDialogOpenChange = (open: boolean) => {
@@ -317,10 +326,14 @@ export default function CalendarPage() {
                         {format(currentDate, 'yyyy年M月')}
                     </CardTitle>
                     <div className="flex space-x-2">
-                        <Button variant="outline" onClick={prevMonth}>上个月</Button>
-                        <Button variant="outline" onClick={nextMonth}>下个月</Button>
-                        <Button onClick={() => router.push('/import')}>导入 CSV</Button>
-                        <Button variant="outline" onClick={() => router.push('/settings')}>提醒设置</Button>
+                        <Button variant="outline" size="sm" onClick={prevMonth}>上个月</Button>
+                        <Button variant="outline" size="sm" onClick={nextMonth}>下个月</Button>
+                        <Button size="sm" onClick={() => router.push('/import')}>导入 CSV</Button>
+                        <Button variant="outline" size="sm" onClick={() => router.push('/settings')}>提醒设置</Button>
+                        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                            <LogOut className="h-4 w-4 mr-1" />
+                            退出
+                        </Button>
                     </div>
                 </CardHeader>
 
