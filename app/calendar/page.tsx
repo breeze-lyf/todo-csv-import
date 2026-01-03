@@ -24,6 +24,7 @@ interface Event {
     reminderDaysOffset?: number | null
     originalEventId?: string
     displayDate?: string
+    createdAt?: string
 }
 
 export default function CalendarPage() {
@@ -401,14 +402,17 @@ export default function CalendarPage() {
                             const dayEvents = filteredEvents
                                 .filter(e => (e.displayDate || e.date) === dateKey)
                                 .sort((a, b) => {
-                                    // 1. Sort by completion status (uncompleted first)
-                                    if (!!a.completed !== !!b.completed) {
-                                        return a.completed ? 1 : -1
-                                    }
-                                    // 2. Sort by time if available
                                     const timeA = a.time || '99:99'
                                     const timeB = b.time || '99:99'
-                                    return timeA.localeCompare(timeB)
+
+                                    if (timeA !== timeB) {
+                                        return timeA.localeCompare(timeB)
+                                    }
+
+                                    // Secondary sort: Creation time for items with same/no time
+                                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                                    return dateA - dateB
                                 })
                             const allDayEvents = events.filter(e => (e.displayDate || e.date) === dateKey)
                             const isCurrentMonth = isSameMonth(day, currentDate)

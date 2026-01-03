@@ -32,12 +32,16 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid month format (YYYY-MM)' }, { status: 400 })
         }
 
-        // Get all reminder rules for this user
-        const reminderRules = await prisma.reminderRule.findMany({
-            where: {
-                userId: payload.userId as string,
-            },
-        })
+        // Get all reminder rules and user settings
+        const [reminderRules, userSettings] = await Promise.all([
+            prisma.reminderRule.findMany({
+                where: { userId: payload.userId as string },
+            }),
+            (prisma.user as any).findUnique({
+                where: { id: payload.userId as string },
+                select: { hideCompletedReminders: true }
+            })
+        ])
 
         // Create a map of label -> offsets and avoidWeekends
         const labelSettings = new Map<string, { offsets: number[], avoidWeekends: boolean }>()
@@ -79,7 +83,9 @@ export async function GET(req: NextRequest) {
             }
 
             // Add reminder instances
-            if (event.label && labelSettings.has(event.label)) {
+            const shouldHideReminders = event.completed && userSettings?.hideCompletedReminders
+
+            if (event.label && labelSettings.has(event.label) && !shouldHideReminders) {
                 const { offsets, avoidWeekends } = labelSettings.get(event.label)!
                 const eventDate = new Date(event.date + 'T00:00:00')
 

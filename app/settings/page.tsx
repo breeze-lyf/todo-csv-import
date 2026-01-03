@@ -34,6 +34,8 @@ export default function SettingsPage() {
     const [rules, setRules] = useState<ReminderRule[]>([])
     const [loading, setLoading] = useState(true)
     const [notificationStatus, setNotificationStatus] = useState<'unsupported' | 'default' | 'granted' | 'denied'>('default')
+    const [hideCompletedReminders, setHideCompletedReminders] = useState(false)
+    const [updatingSettings, setUpdatingSettings] = useState(false)
 
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -41,8 +43,45 @@ export default function SettingsPage() {
 
     useEffect(() => {
         fetchRules()
+        fetchUserSettings()
         refreshNotificationStatus()
     }, [])
+
+    const fetchUserSettings = async () => {
+        try {
+            const res = await fetch('/api/user/settings')
+            if (res.ok) {
+                const data = await res.json()
+                setHideCompletedReminders(data.hideCompletedReminders)
+            }
+        } catch (error) {
+            console.error('Failed to fetch user settings:', error)
+        }
+    }
+
+    const toggleHideCompleted = async () => {
+        const newValue = !hideCompletedReminders
+        setUpdatingSettings(true)
+        try {
+            const res = await fetch('/api/user/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hideCompletedReminders: newValue }),
+            })
+            if (res.ok) {
+                setHideCompletedReminders(newValue)
+                toast({
+                    title: newValue ? '显示设置已更新' : '显示设置已更新',
+                    description: newValue ? '已开启：日程标记完成后，前面的提醒事项将不再显示' : '已关闭：所有提醒事项均会显示'
+                })
+            }
+        } catch (error) {
+            console.error('Failed to update user settings:', error)
+            toast({ variant: 'destructive', title: '设置更新失败' })
+        } finally {
+            setUpdatingSettings(false)
+        }
+    }
 
     const refreshNotificationStatus = () => {
         if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -285,8 +324,8 @@ export default function SettingsPage() {
                                         onClick={requestNotificationPermission}
                                         disabled={notificationStatus === 'unsupported' || notificationStatus === 'granted'}
                                         className={`rounded-2xl h-14 w-full font-black text-base shadow-lg transition-all active:scale-95 ${notificationStatus === 'granted'
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                                                : 'bg-gray-900 hover:bg-black text-white shadow-black/20'
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                                            : 'bg-gray-900 hover:bg-black text-white shadow-black/20'
                                             }`}
                                     >
                                         <Bell className="h-5 w-5 mr-2" />
@@ -311,6 +350,44 @@ export default function SettingsPage() {
                                         请在浏览器地址栏左侧点击“锁”图标，手动将通知设置为“允许”。
                                     </p>
                                 )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Display Preferences Card */}
+                        <Card className="backdrop-blur-3xl bg-white/80 border-white/60 rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] overflow-hidden transition-all hover:shadow-[0_45px_80px_-20px_rgba(0,0,0,0.12)]">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-xl font-black text-gray-900 flex items-center gap-3">
+                                    <ShieldAlert className="h-5 w-5 text-indigo-600" />
+                                    显示偏好
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="p-5 rounded-3xl bg-black/[0.02] border border-black/[0.03] space-y-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="space-y-1">
+                                            <p className="font-black text-sm text-gray-800">完成时隐藏提醒</p>
+                                            <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                                                当日程被标记为“已完成”时，日历上该日程之前的提前提醒图标将自动隐藏。
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={toggleHideCompleted}
+                                            disabled={updatingSettings}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${hideCompletedReminders ? 'bg-blue-600' : 'bg-black/10'}`}
+                                        >
+                                            <span
+                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${hideCompletedReminders ? 'translate-x-5' : 'translate-x-0'}`}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                                        <Clock className="h-3.5 w-3.5 text-indigo-500" />
+                                        <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
+                                            {hideCompletedReminders ? '当前状态：完成后自动清理视图' : '当前状态：显示所有历史提醒'}
+                                        </span>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>

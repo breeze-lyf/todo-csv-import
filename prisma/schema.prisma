@@ -14,10 +14,11 @@ datasource db {
  */
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id                     String   @id @default(cuid())
+  email                  String   @unique
+  password               String
+  hideCompletedReminders Boolean  @default(false)
+  createdAt              DateTime @default(now())
 
   events            Event[]
   reminderRules     ReminderRule[]
@@ -26,21 +27,20 @@ model User {
 }
 
 model Event {
-  id       String   @id @default(cuid())
-  userId   String
-  user     User     @relation(fields: [userId], references: [id])
-  title    String
-  date     String // YYYY-MM-DD
-  time     String? // HH:mm
-  datetime DateTime // ISO DateTime for sorting/querying
-  label    String?
-  notes    String?
-
-  reminderJobs ReminderJob[]
-  completed    Boolean       @default(false)
-
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  date      String // YYYY-MM-DD
+  time      String? // HH:mm
+  datetime  DateTime // ISO DateTime for sorting/querying
+  label     String?
+  notes     String?
+  completed Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  reminderJobs ReminderJob[]
 
   @@index([userId, date])
 }
