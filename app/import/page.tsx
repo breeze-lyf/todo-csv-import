@@ -22,7 +22,7 @@ export default function ImportPage() {
     const [file, setFile] = useState<File | null>(null)
     const [events, setEvents] = useState<ParsedEvent[]>([])
     const [importing, setImporting] = useState(false)
-    const [result, setResult] = useState<{ created: number; failed: number } | null>(null)
+    const [result, setResult] = useState<{ created: number; failed: number; errors?: any[] } | null>(null)
     const templateUrl = '/templates/events-template-v2.csv'
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,8 +100,14 @@ export default function ImportPage() {
             const data = await res.json()
 
             if (res.ok) {
-                setResult({ created: data.created, failed: data.failed })
-                setTimeout(() => router.push('/calendar'), 2000)
+                setResult({
+                    created: data.created,
+                    failed: data.failed,
+                    errors: data.errors
+                })
+                if (data.failed === 0) {
+                    setTimeout(() => router.push('/calendar'), 2000)
+                }
             } else {
                 const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error
                 alert('导入失败：' + errorMsg)
@@ -298,18 +304,39 @@ export default function ImportPage() {
                     )}
 
                     {result && (
-                        <div className="bg-emerald-50 border border-emerald-100/50 rounded-3xl p-6 flex items-center justify-between animate-in zoom-in-95 duration-500">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                                    <CheckCircle2 className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <p className="text-emerald-900 font-black text-lg">导入成功！</p>
-                                    <p className="text-sm text-emerald-700 font-medium">
-                                        已成功创建 {result.created} 条日程记录 | 即将返回日历
-                                    </p>
+                        <div className="space-y-4 animate-in zoom-in-95 duration-500">
+                            <div className="bg-emerald-50 border border-emerald-100/50 rounded-3xl p-6 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                        <CheckCircle2 className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <p className="text-emerald-900 font-black text-lg">
+                                            {result.failed === 0 ? '导入完成！' : '导入处理完成'}
+                                        </p>
+                                        <p className="text-sm text-emerald-700 font-medium">
+                                            成功创建/更新 {result.created} 条记录 {result.failed > 0 && `| 失败 ${result.failed} 条`}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
+
+                            {result.errors && result.errors.length > 0 && (
+                                <div className="bg-red-50 border border-red-100/50 rounded-3xl p-6 space-y-3">
+                                    <div className="flex items-center gap-2 text-red-700">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <p className="text-sm font-black uppercase tracking-widest">错误详情报告</p>
+                                    </div>
+                                    <div className="space-y-2 max-h-40 overflow-auto custom-scrollbar pr-2">
+                                        {result.errors.map((error: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-start text-xs bg-white/50 p-2 rounded-lg border border-red-100">
+                                                <span className="font-bold text-gray-700">#{error.index + 1} {error.title}</span>
+                                                <span className="text-red-500">{error.error}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
