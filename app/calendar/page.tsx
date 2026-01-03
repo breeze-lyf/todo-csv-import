@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
 import { EventDialog } from '@/components/EventDialog'
 import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt'
-import { Search, X, LogOut, User } from 'lucide-react'
+import { Search, X, LogOut, User, Check, ChevronRight } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface Event {
     id: string
@@ -35,6 +36,8 @@ export default function CalendarPage() {
     const [defaultDate, setDefaultDate] = useState<string | undefined>()
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedLabels, setSelectedLabels] = useState<string[]>([])
+    const [dayDetailEvents, setDayDetailEvents] = useState<Event[]>([])
+    const [dayDetailOpen, setDayDetailOpen] = useState(false)
     const [availableLabels, setAvailableLabels] = useState<string[]>([])
     const [draggedEvent, setDraggedEvent] = useState<Event | null>(null)
     const [dragOverDate, setDragOverDate] = useState<string | null>(null)
@@ -96,8 +99,8 @@ export default function CalendarPage() {
         setDialogOpen(true)
     }
 
-    const handleToggleComplete = async (event: Event, e: React.MouseEvent) => {
-        e.stopPropagation()
+    const handleToggleComplete = async (event: Event, e?: React.MouseEvent) => {
+        e?.stopPropagation()
         if (event.isReminder) return // Reminders are virtual
 
         try {
@@ -114,8 +117,8 @@ export default function CalendarPage() {
         }
     }
 
-    const handleEventClick = (event: Event, e: React.MouseEvent) => {
-        e.stopPropagation()
+    const handleEventClick = (event: Event, e?: React.MouseEvent) => {
+        e?.stopPropagation()
 
         // If it's a reminder, find the original event from our list to ensure we have correct data
         if (event.isReminder && event.originalEventId) {
@@ -319,92 +322,79 @@ export default function CalendarPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 min-h-screen bg-gray-50">
-            <Card className="max-w-6xl mx-auto shadow-md">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <div className="relative min-h-screen p-4 md:p-8 bg-[#f8fafc]">
+            {/* Background Decorative Elements - iOS style Mesh Gradient */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-blue-400/10 blur-[100px]" />
+                <div className="absolute bottom-[0] right-[-5%] w-[35%] h-[35%] rounded-full bg-indigo-400/10 blur-[100px]" />
+            </div>
+
+            <Card className="relative z-10 w-full max-w-[1400px] mx-auto backdrop-blur-3xl bg-white/80 border-white/60 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.06)] overflow-hidden rounded-[2.5rem] flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 py-5 px-8 flex-shrink-0 border-b border-black/[0.03]">
                     <CardTitle className="text-2xl font-bold">
                         {format(currentDate, 'yyyy年M月')}
                     </CardTitle>
-                    <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={prevMonth}>上个月</Button>
-                        <Button variant="outline" size="sm" onClick={nextMonth}>下个月</Button>
-                        <Button size="sm" onClick={() => router.push('/import')}>导入 CSV</Button>
-                        <Button variant="outline" size="sm" onClick={() => router.push('/settings')}>提醒设置</Button>
-                        <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-                            <LogOut className="h-4 w-4 mr-1" />
+                    <div className="flex p-1 rounded-2xl backdrop-blur-md border border-black/[0.03] bg-white/20 shadow-sm">
+                        <Button variant="ghost" size="sm" onClick={prevMonth} className="rounded-xl transition-all duration-300 hover:text-blue-600 hover:bg-blue-50/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] active:scale-95">上个月</Button>
+                        <Button variant="ghost" size="sm" onClick={nextMonth} className="rounded-xl transition-all duration-300 hover:text-blue-600 hover:bg-blue-50/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] active:scale-95">下个月</Button>
+                        <div className="w-px h-4 bg-gray-300/40 self-center mx-1.5" />
+                        <Button variant="ghost" size="sm" onClick={() => router.push('/import')} className="rounded-xl transition-all duration-300 hover:text-blue-600 hover:bg-blue-50/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] active:scale-95">导入 CSV</Button>
+                        <Button variant="ghost" size="sm" onClick={() => router.push('/settings')} className="rounded-xl transition-all duration-300 hover:text-blue-600 hover:bg-blue-50/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] active:scale-95">提醒设置</Button>
+                        <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-xl text-red-500 transition-all duration-300 hover:bg-red-50 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] active:scale-95">
+                            <LogOut className="h-4 w-4 mr-1.5" />
                             退出
                         </Button>
                     </div>
                 </CardHeader>
 
-                {/* Search and Filter Section */}
-                <div className="px-6 pb-4 space-y-3">
-                    {/* Search Bar */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input
-                            placeholder="搜索事件标题或备注..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 pr-10"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        )}
-                    </div>
+                {/* Compact Search and Filter Section */}
+                <div className="px-8 py-3 space-y-2 flex-shrink-0 bg-white/40 border-b border-black/[0.02]">
+                    <div className="flex items-center gap-6">
+                        {/* Search Bar */}
+                        <div className="relative group max-w-sm flex-1">
+                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                            <Input
+                                placeholder="搜索日程..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="h-9 pl-10 bg-white/60 border-black/5 rounded-xl focus:bg-white transition-all shadow-none text-sm"
+                            />
+                        </div>
 
-                    {/* Label Filter */}
-                    {availableLabels.length > 0 && (
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-sm text-gray-600 font-medium">标签筛选:</span>
+                        {/* Label Filter Container */}
+                        <div className="flex flex-wrap gap-1.5 items-center flex-1">
                             {availableLabels.map(label => (
                                 <Badge
                                     key={label}
-                                    variant={selectedLabels.includes(label) ? "default" : "outline"}
-                                    className="cursor-pointer"
+                                    variant={selectedLabels.includes(label) ? 'default' : 'outline'}
+                                    className={`cursor-pointer px-2.5 py-0.5 rounded-lg text-xs transition-all border-black/5 ${selectedLabels.includes(label)
+                                        ? 'bg-blue-600 text-white shadow-md'
+                                        : 'bg-white hover:bg-gray-50'
+                                        }`}
                                     onClick={() => toggleLabel(label)}
                                 >
                                     {label}
                                 </Badge>
                             ))}
                             {(searchQuery || selectedLabels.length > 0) && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className="h-6 text-xs"
-                                >
-                                    清除筛选
-                                </Button>
+                                <button onClick={clearFilters} className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-blue-500 transition-colors ml-2">
+                                    清空重置
+                                </button>
                             )}
                         </div>
-                    )}
-
-                    {/* Filter Status */}
-                    {(searchQuery || selectedLabels.length > 0) && (
-                        <div className="text-sm text-gray-600">
-                            找到 <span className="font-semibold text-blue-600">{filteredEvents.length}</span> 个事件
-                            {searchQuery && <span> (搜索: "{searchQuery}")</span>}
-                            {selectedLabels.length > 0 && <span> (标签: {selectedLabels.join(', ')})</span>}
-                        </div>
-                    )}
+                    </div>
                 </div>
 
-                <CardContent>
+                <CardContent className="flex-1 flex flex-col px-8 pb-8 pt-0 overflow-hidden">
                     {/* Weekday Headers */}
-                    <div className="grid grid-cols-7 mb-2 text-center text-sm font-semibold text-gray-500">
+                    <div className="grid grid-cols-7 mb-1 text-center text-[11px] font-bold text-gray-400 uppercase tracking-widest">
                         {weekDays.map((day) => (
                             <div key={day} className="py-2">{day}</div>
                         ))}
                     </div>
 
-                    {/* Days Grid */}
-                    <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200">
+                    {/* Days Grid - Removed grid-rows-6 to fix bottom empty space */}
+                    <div className="flex-1 grid grid-cols-7 gap-px border border-black/5 rounded-[1.5rem] overflow-hidden shadow-inner bg-black/[0.02]">
                         {calendarDays.map((day) => {
                             const dateKey = format(day, 'yyyy-MM-dd')
                             // Filter events based on displayDate (which handles both real date and reminder date)
@@ -422,7 +412,6 @@ export default function CalendarPage() {
                                 })
                             const allDayEvents = events.filter(e => (e.displayDate || e.date) === dateKey)
                             const isCurrentMonth = isSameMonth(day, currentDate)
-                            const hasFilteredEvents = dayEvents.length > 0
                             const hasHiddenEvents = allDayEvents.length > dayEvents.length
                             const isDragOver = dragOverDate === dateKey
 
@@ -430,7 +419,10 @@ export default function CalendarPage() {
                                 <div
                                     key={day.toString()}
                                     data-testid={`calendar-day-${dateKey}`}
-                                    className={`min-h-[120px] bg-white p-2 ${!isCurrentMonth ? 'text-gray-300 bg-gray-50' : ''} ${hasFilteredEvents ? 'ring-2 ring-blue-300' : ''} ${isDragOver ? 'bg-green-50 ring-2 ring-green-400' : ''} hover:bg-blue-50 transition-colors cursor-pointer`}
+                                    className={`relative flex flex-col p-2.5 min-h-[140px] transition-all duration-300 cursor-pointer border-[0.5px] border-black/5 ${!isCurrentMonth
+                                        ? 'bg-[#fafbfc] text-gray-300'
+                                        : 'bg-white shadow-[inset_0_0_20px_rgba(0,0,0,0.01)]'
+                                        } ${isDragOver ? 'bg-blue-50/50' : 'hover:bg-white hover:z-20 hover:shadow-2xl hover:border-blue-400 hover:ring-2 hover:ring-blue-400/20'}`}
                                     onClick={(e) => handleDayClickWrapper(day, e)}
                                     onContextMenu={(e) => handleDayContextMenu(day, e)}
                                     onTouchStart={(e) => handleTouchStart(day, e)}
@@ -440,18 +432,28 @@ export default function CalendarPage() {
                                     onDragLeave={handleDragLeave}
                                     onDrop={(e) => handleDrop(dateKey, e)}
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <span className={`text-sm font-medium ${isSameDay(day, new Date()) ? 'bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>
+                                    <div className="flex justify-between items-start mb-2 h-6">
+                                        <span className={`text-[13px] font-black w-7 h-7 flex items-center justify-center transition-all ${isSameDay(day, new Date())
+                                            ? 'bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 font-bold'
+                                            : !isCurrentMonth ? 'opacity-40' : 'text-gray-900'
+                                            }`}>
                                             {format(day, 'd')}
                                         </span>
-                                        {hasHiddenEvents && (
-                                            <span className="text-xs text-gray-400" title={`${allDayEvents.length - dayEvents.length} 个事件被筛选隐藏`}>
-                                                +{allDayEvents.length - dayEvents.length}
-                                            </span>
+                                        {dayEvents.length > 2 && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDayDetailEvents(dayEvents);
+                                                    setDayDetailOpen(true);
+                                                }}
+                                                className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:scale-110 transition-all z-30"
+                                            >
+                                                +{dayEvents.length - 2} Items
+                                            </button>
                                         )}
                                     </div>
-                                    <div className="mt-2 space-y-1">
-                                        {dayEvents.slice(0, 3).map(event => {
+                                    <div className="flex-1 space-y-1.5">
+                                        {dayEvents.slice(0, 2).map(event => {
                                             const isReminder = event.isReminder
                                             const isCompleted = event.completed
                                             return (
@@ -461,51 +463,54 @@ export default function CalendarPage() {
                                                     draggable={!isReminder && !isCompleted}
                                                     onDragStart={(e) => !isReminder && !isCompleted && handleDragStart(event, e)}
                                                     onDragEnd={handleDragEnd}
-                                                    className={`group relative text-xs p-1.5 rounded-md truncate transition-all duration-200 border shadow-sm ${isReminder
-                                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                                                    className={`group relative text-[11px] p-1.5 rounded-xl truncate transition-all duration-300 border shadow-sm ${isReminder
+                                                        ? 'bg-emerald-400/10 text-emerald-800 border-emerald-200/50 backdrop-blur-md'
                                                         : isCompleted
-                                                            ? 'bg-gray-50 text-gray-400 border-gray-200 line-through'
-                                                            : 'bg-white text-blue-800 border-blue-100 hover:border-blue-300 hover:shadow-md cursor-move'
+                                                            ? 'bg-gray-100/50 text-gray-400 border-gray-200/50 line-through backdrop-blur-sm'
+                                                            : 'bg-white/80 text-gray-800 border-white/60 hover:border-blue-300/50 hover:shadow-lg hover:-translate-y-0.5 cursor-move backdrop-blur-md'
                                                         } ${draggedEvent?.id === event.id ? 'opacity-50 scale-95' : ''}`}
-                                                    title={`${event.title}${isReminder ? ` (提前${event.reminderDaysOffset}天提醒)` : ''}${isCompleted ? ' (已完成)' : ''}`}
+                                                    title={`${event.title}${isCompleted ? ' (已完成)' : ''}`}
                                                     onClick={(e) => handleEventClick(event, e)}
                                                 >
-                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
                                                         {!isReminder && (
                                                             <button
                                                                 onClick={(e) => handleToggleComplete(event, e)}
-                                                                className={`flex-shrink-0 w-3.5 h-3.5 rounded-full border transition-colors flex items-center justify-center ${isCompleted
-                                                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                                                    : 'border-gray-300 hover:border-blue-500 bg-white'
+                                                                className={`flex-shrink-0 w-4 h-4 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${isCompleted
+                                                                    ? 'bg-blue-500 border-blue-500 text-white shadow-inner'
+                                                                    : 'border-blue-200 bg-white/50 hover:border-blue-400'
                                                                     }`}
                                                             >
-                                                                {isCompleted && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                {isCompleted && (
+                                                                    <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
+                                                                        <path d="M0 11l2-2 5 5L18 3l2 2L7 18z" />
+                                                                    </svg>
+                                                                )}
                                                             </button>
                                                         )}
 
                                                         {isReminder ? (
                                                             <div className={`flex items-center gap-1 min-w-0 ${isCompleted ? 'opacity-50' : ''}`}>
                                                                 <span className="scale-75 opacity-70">🔔</span>
-                                                                <span className="font-bold text-[9px] bg-emerald-200 px-1 rounded-sm flex-shrink-0">
-                                                                    -{event.reminderDaysOffset}D
+                                                                <span className="font-black text-[9px] text-emerald-600 bg-emerald-500/10 px-1 rounded flex-shrink-0">
+                                                                    [-{event.reminderDaysOffset}D]
                                                                 </span>
-                                                                <span className="truncate">{event.title}</span>
+                                                                <span className="truncate font-medium ml-0.5">{event.title}</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="truncate flex items-center gap-1">
-                                                                {event.label && <span className="font-bold text-blue-600 opacity-80 flex-shrink-0">[{event.label}]</span>}
-                                                                <span className="truncate">{event.title}</span>
+                                                            <div className="truncate flex items-center gap-1.5">
+                                                                {event.label && (
+                                                                    <span className="font-bold text-blue-600 bg-blue-100/50 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide opacity-80 flex-shrink-0">
+                                                                        {event.label}
+                                                                    </span>
+                                                                )}
+                                                                <span className="truncate font-medium text-gray-700">{event.title}</span>
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
                                             )
                                         })}
-                                        {dayEvents.length > 3 && (
-                                            <div className="text-xs text-gray-500 font-medium pl-1">
-                                                +{dayEvents.length - 3} 条更多
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             )
@@ -523,6 +528,86 @@ export default function CalendarPage() {
                 defaultDate={defaultDate}
                 onSuccess={() => fetchEvents(currentDate)}
             />
+
+            {/* Day Detail Dialog - Shows all events for a day when +N is clicked */}
+            <Dialog open={dayDetailOpen} onOpenChange={setDayDetailOpen}>
+                <DialogContent className="max-w-md backdrop-blur-2xl bg-white/90 border-white/40 rounded-[1.5rem] shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                            <span className="w-2 h-6 bg-blue-600 rounded-full" />
+                            {dayDetailEvents.length > 0 && format(new Date(dayDetailEvents[0].displayDate || dayDetailEvents[0].date), 'yyyy年M月d日')}
+                        </DialogTitle>
+                        <DialogDescription>当日共有 {dayDetailEvents.length} 条日程</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto px-1 py-1 mt-4 custom-scrollbar">
+                        {dayDetailEvents.map(event => {
+                            const isReminder = event.isReminder;
+                            const isCompleted = event.completed;
+                            return (
+                                <div
+                                    key={`detail-${event.id}`}
+                                    onClick={() => {
+                                        setDayDetailOpen(false);
+                                        handleEventClick(event);
+                                    }}
+                                    className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${isReminder
+                                        ? 'bg-emerald-50/40 border-emerald-100/40 hover:border-emerald-300'
+                                        : isCompleted
+                                            ? 'bg-gray-50/40 border-gray-100/40 opacity-50'
+                                            : 'bg-white/60 border-black/[0.03] hover:border-blue-300 hover:shadow-lg hover:-translate-y-0.5'
+                                        }`}
+                                >
+                                    {isReminder ? (
+                                        <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-lg">🔔</div>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleComplete(event);
+                                                setDayDetailEvents(prev => prev.map(ev => ev.id === event.id ? { ...ev, completed: !ev.completed } : ev));
+                                            }}
+                                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isCompleted
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-inner'
+                                                : 'border-blue-100 bg-white/50 hover:border-blue-400'
+                                                }`}
+                                        >
+                                            {isCompleted && <Check className="h-3 w-3 stroke-[3]" />}
+                                        </button>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            {event.label && (
+                                                <Badge variant="secondary" className="bg-blue-100/50 text-blue-700 hover:bg-blue-100/50 text-[10px] px-1.5 py-0 border-none uppercase font-black">
+                                                    {event.label}
+                                                </Badge>
+                                            )}
+                                            {event.time && <span className="text-[10px] font-bold text-gray-400">{event.time}</span>}
+                                        </div>
+                                        <div className={`font-semibold truncate ${isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                            {event.title}
+                                            {event.isReminder && event.reminderDaysOffset != null && (
+                                                <span className="ml-1.5 font-black text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg border border-emerald-100">
+                                                    [-{event.reminderDaysOffset}D]
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="h-4 w-4 text-gray-300" />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                        <Button
+                            variant="outline"
+                            className="rounded-xl border-gray-200 hover:bg-gray-50"
+                            onClick={() => setDayDetailOpen(false)}
+                        >
+                            关闭
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
