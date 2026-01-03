@@ -7,8 +7,13 @@ import { runReminderScheduler } from '@/lib/scheduler'
  */
 export async function POST(req: NextRequest) {
     try {
-        // Optional: Add authentication/authorization here
-        // For now, anyone can trigger it (you may want to add a secret token)
+        const cronSecret = process.env.CRON_SECRET
+        if (cronSecret) {
+            const authHeader = req.headers.get('authorization')
+            if (authHeader !== `Bearer ${cronSecret}`) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            }
+        }
 
         const result = await runReminderScheduler()
 
@@ -25,12 +30,28 @@ export async function POST(req: NextRequest) {
     }
 }
 
-/**
- * GET endpoint to check scheduler status
- */
-export async function GET() {
-    return NextResponse.json({
-        status: 'ready',
-        message: 'Scheduler is available. Use POST to trigger.',
-    }, { status: 200 })
+export async function GET(req: NextRequest) {
+    try {
+        const cronSecret = process.env.CRON_SECRET
+        if (cronSecret) {
+            const authHeader = req.headers.get('authorization')
+            if (authHeader !== `Bearer ${cronSecret}`) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            }
+        }
+
+        const result = await runReminderScheduler()
+
+        return NextResponse.json({
+            success: true,
+            status: 'executed',
+            ...result,
+        }, { status: 200 })
+    } catch (error) {
+        console.error('Scheduler GET error:', error)
+        return NextResponse.json({
+            success: false,
+            error: 'Scheduler failed',
+        }, { status: 500 })
+    }
 }
