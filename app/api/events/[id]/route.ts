@@ -10,6 +10,7 @@ const eventUpdateSchema = z.object({
     time: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable().or(z.literal('')),
     label: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
+    completed: z.boolean().optional(),
 })
 
 export async function PUT(
@@ -46,30 +47,61 @@ export async function PUT(
         }
 
         const body = await req.json()
-        const result = eventUpdateSchema.safeParse(body)
+        console.log(`[PUT /api/events/${eventId}] Request body:`, body)
 
+        const result = eventUpdateSchema.safeParse(body)
         if (!result.success) {
+            console.error(`[PUT /api/events/${eventId}] Validation failed:`, result.error)
             return NextResponse.json({ error: 'Invalid input', details: result.error }, { status: 400 })
         }
 
-        const updatedEvent = await prisma.event.update({
+        // Prepare update data
+        const updateData: any = { ...result.data }
+
+        // If date or time is being updated, we need to recalculate the datetime field
+        if (updateData.date || updateData.time !== undefined) {
+            const rawDate = updateData.date || existingEvent.date
+            const date = rawDate.replace(/\//g, '-')
+            updateData.date = date // Ensure it's stored as YYYY-MM-DD
+
+            const time = updateData.time === undefined ? existingEvent.time : updateData.time
+            const timeStr = (time && time !== '') ? time : '10:00'
+            const datetimeStr = `${date}T${timeStr}:00+08:00`
+            const datetime = new Date(datetimeStr)
+
+            if (isNaN(datetime.getTime())) {
+                console.error(`[PUT /api/events/${eventId}] Invalid datetime constructed:`, { date, timeStr, datetimeStr })
+                return NextResponse.json({ error: 'Invalid date or time format' }, { status: 400 })
+            }
+            updateData.datetime = datetime
+        }
+
+        const updatedEvent = await (prisma.event as any).update({
             where: { id: eventId },
-            data: result.data,
+            data: updateData,
         })
 
         // Regenerate reminder jobs for this event
-        await generateReminderJobs({
-            id: updatedEvent.id,
-            userId: updatedEvent.userId,
-            date: updatedEvent.date,
-            time: updatedEvent.time,
-            label: updatedEvent.label,
-        })
+        try {
+            await generateReminderJobs({
+                id: updatedEvent.id,
+                userId: updatedEvent.userId,
+                date: updatedEvent.date,
+                time: updatedEvent.time,
+                label: updatedEvent.label,
+                completed: updatedEvent.completed,
+            })
+        } catch (jobError) {
+            console.error(`[PUT /api/events/${eventId}] Failed to generate reminder jobs:`, jobError)
+        }
 
         return NextResponse.json({ event: updatedEvent }, { status: 200 })
     } catch (error) {
-        console.error('Update Event error:', error)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+        console.error('Update Event error detail:', error) // Log full error
+        return NextResponse.json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : String(error)
+        }, { status: 500 })
     }
 }
 

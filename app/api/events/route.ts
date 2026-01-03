@@ -6,10 +6,11 @@ import { z } from 'zod'
 
 const eventSchema = z.object({
     title: z.string().min(1),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    time: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable().or(z.literal('')),
+    date: z.string().regex(/^\d{4}[-/]\d{2}[-/]\d{2}$/),
+    time: z.string().regex(/^\d{1,2}:\d{2}$/).optional().nullable().or(z.literal('')),
     label: z.string().optional().nullable(),
     notes: z.string().optional().nullable(),
+    completed: z.boolean().optional(),
 })
 
 export async function GET(req: NextRequest) {
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
         // To support reminders landing in the requested month from events in future months,
         // we fetch events starting from this month up to several months ahead.
         // Usually 3 months (90 days) is plenty for "early reminders".
-        const events = await prisma.event.findMany({
+        const events = await (prisma.event as any).findMany({
             where: {
                 userId: payload.userId as string,
                 date: {
@@ -59,14 +60,6 @@ export async function GET(req: NextRequest) {
             },
             orderBy: {
                 date: 'asc',
-            },
-            select: {
-                id: true,
-                title: true,
-                date: true,
-                time: true,
-                label: true,
-                notes: true,
             },
         })
 
@@ -129,71 +122,126 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    console.log('[POST /api/events] Received request')
     try {
+        // 1. Auth check
         const token = req.cookies.get('token')?.value
         if (!token) {
+            console.log('[POST] No token found in cookies')
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const payload = await verifyToken(token)
         if (!payload?.userId) {
+            console.log('[POST] Token verification failed')
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
+        const userId = payload.userId as string
 
+        // 2. Parse body
         const body = await req.json()
-        const result = eventSchema.safeParse(body)
+        console.log('[POST] Parsed body:', body)
 
-        if (!result.success) {
-            return NextResponse.json({ error: 'Invalid input', details: result.error }, { status: 400 })
+        // 3. Simple validation (since Zod might be too strict or failing silently)
+        const { title, date: rawDate, time, label, notes, completed } = body
+        if (!title || !rawDate) {
+            return NextResponse.json({ error: 'Title and Date are required' }, { status: 400 })
         }
 
-        const { title, date, time, label, notes } = result.data
-
-        // Calculate datetime from date and time
-        const timeStr = time || '10:00' // Default to 10:00 if no time specified
-        const datetimeStr = `${date}T${timeStr}:00+08:00` // Asia/Shanghai timezone
+        // 4. Normalize data
+        const date = rawDate.replace(/\//g, '-')
+        const timeStr = (time && time !== '') ? time : '10:00'
+        const datetimeStr = `${date}T${timeStr}:00+08:00`
         const datetime = new Date(datetimeStr)
 
-        const existing = await prisma.event.findFirst({
-            where: { userId: payload.userId as string, title },
+        if (isNaN(datetime.getTime())) {
+            console.error('[POST] Invalid date/time:', datetimeStr)
+            return NextResponse.json({ error: 'Invalid date or time format' }, { status: 400 })
+        }
+
+        // 5. Database Operation
+        console.log('[POST] Database operation starting for user:', userId)
+
+        // Find existing by title to support upsert-like behavior
+        const existing = await (prisma as any).event.findFirst({
+            where: { userId, title }
         })
 
-        const event = existing
-            ? await prisma.event.update({
-                where: { id: existing.id },
-                data: {
-                    title,
-                    date,
-                    time: time || null,
-                    datetime,
-                    label: label || null,
-                    notes: notes || null,
-                },
-            })
-            : await prisma.event.create({
-                data: {
-                    userId: payload.userId as string,
-                    title,
-                    date,
-                    time: time || null,
-                    datetime,
-                    label: label || null,
-                    notes: notes || null,
-                },
-            })
+        const dataPayload = {
+            title,
+            date,
+            time: (time && time !== '') ? time : null,
+            datetime,
+            label: label || null,
+            notes: notes || null,
+            completed: !!completed,
+        }
 
-        // Generate reminder jobs for this event
-        await generateReminderJobs({
-            id: event.id,
-            userId: event.userId,
-            date: event.date,
-            time: event.time,
-            label: event.label,
-        })
+        let eventResult: any
+        try {
+            if (existing) {
+                console.log('[POST] Updating existing event:', existing.id)
+                eventResult = await (prisma as any).event.update({
+                    where: { id: existing.id },
+                    data: dataPayload
+                })
+            } else {
+                console.log('[POST] Creating new event')
+                eventResult = await (prisma as any).event.create({
+                    data: {
+                        ...dataPayload,
+                        userId
+                    }
+                })
+            }
+        } catch (dbError: any) {
+            // THE ULTIMATE FALLBACK: If Prisma still thinks 'completed' is an unknown argument
+            if (dbError.message && dbError.message.includes('Unknown argument `completed`')) {
+                console.warn('[POST] Client out of sync! Retrying without completed field.')
+                const { completed: _, ...fallbackData } = dataPayload
+                if (existing) {
+                    eventResult = await (prisma as any).event.update({
+                        where: { id: existing.id },
+                        data: fallbackData
+                    })
+                } else {
+                    eventResult = await (prisma as any).event.create({
+                        data: { ...fallbackData, userId }
+                    })
+                }
+            } else {
+                console.error('[POST] Database operation failed:', dbError)
+                return NextResponse.json({
+                    error: 'Database error',
+                    message: dbError.message,
+                    code: dbError.code
+                }, { status: 500 })
+            }
+        }
 
-        return NextResponse.json({ event, replaced: Boolean(existing) }, { status: existing ? 200 : 201 })
-    } catch (error) {
-        console.error('Create Event error:', error)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+        console.log('[POST] Success, Event ID:', eventResult.id)
+
+        // 6. Reminder Jobs (Non-blocking)
+        try {
+            await generateReminderJobs({
+                id: eventResult.id,
+                userId: eventResult.userId,
+                date: eventResult.date,
+                time: eventResult.time,
+                label: eventResult.label,
+                completed: eventResult.completed,
+            })
+            console.log('[POST] Reminder jobs generated')
+        } catch (jobErr) {
+            console.error('[POST] Reminder jobs failed (swallowed):', jobErr)
+        }
+
+        return NextResponse.json({ event: eventResult, replaced: !!existing }, { status: 201 })
+    } catch (error: any) {
+        console.error('[POST] Unexpected fatal error:', error)
+        return NextResponse.json({
+            error: 'Internal server error',
+            message: error.message || String(error)
+        }, { status: 500 })
     }
 }

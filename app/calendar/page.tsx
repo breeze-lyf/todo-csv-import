@@ -18,6 +18,7 @@ interface Event {
     label?: string | null
     time?: string | null
     notes?: string | null
+    completed?: boolean
     isReminder?: boolean
     reminderDaysOffset?: number | null
     originalEventId?: string
@@ -93,6 +94,24 @@ export default function CalendarPage() {
         setDefaultDate(dateStr)
         setSelectedEvent(undefined)
         setDialogOpen(true)
+    }
+
+    const handleToggleComplete = async (event: Event, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (event.isReminder) return // Reminders are virtual
+
+        try {
+            const res = await fetch(`/api/events/${event.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: !event.completed }),
+            })
+            if (res.ok) {
+                fetchEvents(currentDate)
+            }
+        } catch (error) {
+            console.error('Failed to toggle completion', error)
+        }
     }
 
     const handleEventClick = (event: Event, e: React.MouseEvent) => {
@@ -376,7 +395,18 @@ export default function CalendarPage() {
                         {calendarDays.map((day) => {
                             const dateKey = format(day, 'yyyy-MM-dd')
                             // Filter events based on displayDate (which handles both real date and reminder date)
-                            const dayEvents = filteredEvents.filter(e => (e.displayDate || e.date) === dateKey)
+                            const dayEvents = filteredEvents
+                                .filter(e => (e.displayDate || e.date) === dateKey)
+                                .sort((a, b) => {
+                                    // 1. Sort by completion status (uncompleted first)
+                                    if (!!a.completed !== !!b.completed) {
+                                        return a.completed ? 1 : -1
+                                    }
+                                    // 2. Sort by time if available
+                                    const timeA = a.time || '99:99'
+                                    const timeB = b.time || '99:99'
+                                    return timeA.localeCompare(timeB)
+                                })
                             const allDayEvents = events.filter(e => (e.displayDate || e.date) === dateKey)
                             const isCurrentMonth = isSameMonth(day, currentDate)
                             const hasFilteredEvents = dayEvents.length > 0
@@ -410,33 +440,51 @@ export default function CalendarPage() {
                                     <div className="mt-2 space-y-1">
                                         {dayEvents.slice(0, 3).map(event => {
                                             const isReminder = event.isReminder
+                                            const isCompleted = event.completed
                                             return (
                                                 <div
                                                     key={event.id}
                                                     data-testid={`calendar-event-${event.id}`}
-                                                    draggable={!isReminder} // Reminders are view-only repositioned items
-                                                    onDragStart={(e) => !isReminder && handleDragStart(event, e)}
+                                                    draggable={!isReminder && !isCompleted}
+                                                    onDragStart={(e) => !isReminder && !isCompleted && handleDragStart(event, e)}
                                                     onDragEnd={handleDragEnd}
-                                                    className={`text-xs p-1 rounded truncate hover:opacity-80 transition-opacity ${isReminder
-                                                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                                            : 'bg-blue-100 text-blue-800 cursor-move'
-                                                        } ${draggedEvent?.id === event.id ? 'opacity-50' : ''}`}
-                                                    title={`${event.title}${isReminder ? ` (提前${event.reminderDaysOffset}天提醒)` : ''}`}
+                                                    className={`group relative text-xs p-1.5 rounded-md truncate transition-all duration-200 border shadow-sm ${isReminder
+                                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                                                        : isCompleted
+                                                            ? 'bg-gray-50 text-gray-400 border-gray-200 line-through'
+                                                            : 'bg-white text-blue-800 border-blue-100 hover:border-blue-300 hover:shadow-md cursor-move'
+                                                        } ${draggedEvent?.id === event.id ? 'opacity-50 scale-95' : ''}`}
+                                                    title={`${event.title}${isReminder ? ` (提前${event.reminderDaysOffset}天提醒)` : ''}${isCompleted ? ' (已完成)' : ''}`}
                                                     onClick={(e) => handleEventClick(event, e)}
                                                 >
-                                                    {isReminder ? (
-                                                        <span className="flex items-center gap-1">
-                                                            <span className="scale-75 opacity-70">🔔</span>
-                                                            <span className="font-semibold text-[10px] bg-emerald-200 px-1 rounded">
-                                                                -{event.reminderDaysOffset}天
-                                                            </span>
-                                                            <span className="truncate">{event.title}</span>
-                                                        </span>
-                                                    ) : (
-                                                        <>
-                                                            {event.label && <span className="font-semibold">[{event.label}]</span>} {event.title}
-                                                        </>
-                                                    )}
+                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                        {!isReminder && (
+                                                            <button
+                                                                onClick={(e) => handleToggleComplete(event, e)}
+                                                                className={`flex-shrink-0 w-3.5 h-3.5 rounded-full border transition-colors flex items-center justify-center ${isCompleted
+                                                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                                                    : 'border-gray-300 hover:border-blue-500 bg-white'
+                                                                    }`}
+                                                            >
+                                                                {isCompleted && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                            </button>
+                                                        )}
+
+                                                        {isReminder ? (
+                                                            <div className={`flex items-center gap-1 min-w-0 ${isCompleted ? 'opacity-50' : ''}`}>
+                                                                <span className="scale-75 opacity-70">🔔</span>
+                                                                <span className="font-bold text-[9px] bg-emerald-200 px-1 rounded-sm flex-shrink-0">
+                                                                    -{event.reminderDaysOffset}D
+                                                                </span>
+                                                                <span className="truncate">{event.title}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="truncate flex items-center gap-1">
+                                                                {event.label && <span className="font-bold text-blue-600 opacity-80 flex-shrink-0">[{event.label}]</span>}
+                                                                <span className="truncate">{event.title}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )
                                         })}

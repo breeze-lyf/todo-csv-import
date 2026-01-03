@@ -56,7 +56,12 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < events.length; i++) {
             try {
                 const eventData = events[i]
-                const normalizedDate = eventData.date.replace(/\//g, '-')
+                // Improved normalization: ensure YYYY-MM-DD with padding
+                const dateParts = eventData.date.split(/[-/]/)
+                const normalizedDate = dateParts.length === 3
+                    ? `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`
+                    : eventData.date.replace(/\//g, '-')
+
                 const normalizedTime = eventData.time
                     ? eventData.time.replace(/^(\d):/, '0$1:')
                     : undefined
@@ -68,41 +73,58 @@ export async function POST(req: NextRequest) {
 
                 const existing = existingByTitle.get(eventData.title)
 
-                const event = existing
-                    ? await prisma.event.update({
-                        where: { id: existing.id },
-                        data: {
-                            title: eventData.title,
-                            date: normalizedDate,
-                            time: normalizedTime || null,
-                            datetime,
-                            label: eventData.label || null,
-                            notes: eventData.notes || null,
-                        },
-                    })
-                    : await prisma.event.create({
-                        data: {
-                            userId,
-                            title: eventData.title,
-                            date: normalizedDate,
-                            time: normalizedTime || null,
-                            datetime,
-                            label: eventData.label || null,
-                            notes: eventData.notes || null,
-                        },
-                    })
+                let event: any
+                const baseData: any = {
+                    title: eventData.title,
+                    date: normalizedDate,
+                    time: normalizedTime || null,
+                    datetime,
+                    label: eventData.label || null,
+                    notes: eventData.notes || null,
+                    completed: false,
+                }
+
+                try {
+                    event = existing
+                        ? await (prisma.event as any).update({
+                            where: { id: existing.id },
+                            data: baseData,
+                        })
+                        : await (prisma.event as any).create({
+                            data: { ...baseData, userId },
+                        })
+                } catch (dbErr: any) {
+                    if (dbErr.message && dbErr.message.includes('Unknown argument `completed`')) {
+                        const { completed: _, ...fallbackData } = baseData
+                        event = existing
+                            ? await (prisma.event as any).update({
+                                where: { id: existing.id },
+                                data: fallbackData,
+                            })
+                            : await (prisma.event as any).create({
+                                data: { ...fallbackData, userId },
+                            })
+                    } else {
+                        throw dbErr
+                    }
+                }
 
                 // Keep map updated so later duplicates in the same import overwrite the latest
                 existingByTitle.set(eventData.title, event)
 
                 // Generate reminder jobs
-                await generateReminderJobs({
-                    id: event.id,
-                    userId: event.userId,
-                    date: event.date,
-                    time: event.time,
-                    label: event.label,
-                })
+                try {
+                    await generateReminderJobs({
+                        id: event.id,
+                        userId: event.userId,
+                        date: event.date,
+                        time: event.time,
+                        label: event.label,
+                        completed: (event as any).completed,
+                    })
+                } catch (jobError) {
+                    console.error(`[Bulk Create] Failed to generate reminder jobs for event ${event.id}:`, jobError)
+                }
 
                 if (existing) {
                     updatedEvents.push(event)

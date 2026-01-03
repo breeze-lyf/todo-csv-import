@@ -17,6 +17,7 @@ const eventSchema = z.object({
     time: z.string().regex(/^\d{2}:\d{2}$/).optional().or(z.literal('')),
     label: z.string().optional(),
     notes: z.string().optional(),
+    completed: z.boolean().default(false),
 })
 
 type EventFormData = z.infer<typeof eventSchema>
@@ -31,6 +32,7 @@ interface EventDialogProps {
         time?: string | null
         label?: string | null
         notes?: string | null
+        completed?: boolean
     }
     defaultDate?: string // 新增：点击空白日期时传入
     onSuccess?: () => void
@@ -42,19 +44,21 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
     const { toast } = useToast()
 
     const { register, handleSubmit, formState: { errors }, reset } = useForm<EventFormData>({
-        resolver: zodResolver(eventSchema),
+        resolver: zodResolver(eventSchema) as any,
         defaultValues: event ? {
             title: event.title,
             date: event.date,
             time: event.time || '',
             label: event.label || '',
             notes: event.notes || '',
+            completed: event.completed || false,
         } : defaultDate ? {
             title: '',
             date: defaultDate,
             time: '',
             label: '',
             notes: '',
+            completed: false,
         } : undefined,
     })
 
@@ -68,6 +72,7 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
                     time: event.time || '',
                     label: event.label || '',
                     notes: event.notes || '',
+                    completed: event.completed || false,
                 })
             } else if (defaultDate) {
                 reset({
@@ -76,9 +81,17 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
                     time: '',
                     label: '',
                     notes: '',
+                    completed: false,
                 })
             } else {
-                reset()
+                reset({
+                    title: '',
+                    date: '',
+                    time: '',
+                    label: '',
+                    notes: '',
+                    completed: false,
+                })
             }
         }
     }, [open, event, defaultDate, reset])
@@ -110,7 +123,8 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
 
             if (!res.ok) {
                 const json = await res.json()
-                throw new Error(json.error || 'Failed to save event')
+                const errorMessage = json.message || json.error || 'Failed to save event'
+                throw new Error(errorMessage)
             }
 
             toast({
@@ -198,6 +212,18 @@ export function EventDialog({ open, onOpenChange, event, defaultDate, onSuccess 
                     <div>
                         <Label htmlFor="notes">备注（可选）</Label>
                         <Textarea id="notes" rows={3} {...register('notes')} placeholder="填写额外说明..." />
+                    </div>
+
+                    <div className="flex items-center space-x-2 py-2">
+                        <input
+                            type="checkbox"
+                            id="completed"
+                            {...register('completed')}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <Label htmlFor="completed" className="font-medium cursor-pointer text-blue-700">
+                            已完成 (标记后将不再提醒)
+                        </Label>
                     </div>
 
                     <DialogFooter className="gap-2">

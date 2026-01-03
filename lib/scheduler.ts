@@ -16,6 +16,13 @@ export async function runReminderScheduler() {
 
         for (const job of pendingJobs) {
             try {
+                // Skip if the event is already marked as completed
+                if ((job.event as any).completed) {
+                    console.log(`[Scheduler] Event ${job.event.id} for job ${job.id} is already completed. Marking job as sent and skipping notification.`)
+                    await markJobAsSent(job.id)
+                    continue
+                }
+
                 // Get user's push subscriptions
                 const subscriptions = await prisma.pushSubscription.findMany({
                     where: {

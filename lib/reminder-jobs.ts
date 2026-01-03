@@ -6,6 +6,7 @@ interface Event {
     date: string // YYYY-MM-DD
     time?: string | null // HH:mm
     label?: string | null
+    completed?: boolean
 }
 
 /**
@@ -17,6 +18,16 @@ export async function generateReminderJobs(event: Event) {
     await prisma.reminderJob.deleteMany({
         where: { eventId: event.id },
     })
+
+    // If event is completed, don't generate new jobs
+    if (event.completed) {
+        return 0
+    }
+
+    // If event is completed, don't generate new jobs
+    if (event.completed) {
+        return 0
+    }
 
     // Find reminder rule for this label
     let rule = null
