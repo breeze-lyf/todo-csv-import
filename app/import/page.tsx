@@ -103,7 +103,8 @@ export default function ImportPage() {
                 setResult({ created: data.created, failed: data.failed })
                 setTimeout(() => router.push('/calendar'), 2000)
             } else {
-                alert('导入失败：' + data.error)
+                const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error
+                alert('导入失败：' + errorMsg)
             }
         } catch (error) {
             console.error('Import error:', error)

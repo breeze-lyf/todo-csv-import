@@ -74,9 +74,21 @@ export async function generateReminderJobs(event: Event) {
 
     // Create all jobs
     if (jobs.length > 0) {
-        await prisma.reminderJob.createMany({
-            data: jobs,
-        })
+        try {
+            await prisma.reminderJob.createMany({
+                data: jobs,
+            })
+        } catch (err: any) {
+            console.error('[Reminder Jobs] createMany failed, falling back to individual inserts:', err.message)
+            // Fallback: insert one by one if createMany is not supported or fails
+            for (const job of jobs) {
+                try {
+                    await prisma.reminderJob.create({ data: job })
+                } catch (singleErr) {
+                    console.error('[Reminder Jobs] Individual insert failed:', singleErr)
+                }
+            }
+        }
     }
 
     return jobs.length
