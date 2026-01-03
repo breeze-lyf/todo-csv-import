@@ -59,79 +59,39 @@ SimpleCalendar Reminder 是一个完整的全栈日历提醒应用，专为人�
 - ✅ 实时统计被筛选掉的事件数量
 
 ### 8. **UI/UX 优化**
+- ✅ **Premium Glassmorphism 设计系统**（全站覆盖）
+- ✅ **动态弥散渐变背景**（带呼吸动效）
+- ✅ **Concise Reminder Badges**: 使用 `[-XD]` 格式（如 `[-3D]`）直观展示提醒偏移
+- ✅ **iOS 风格交互**: 如下拉菜单、开关按钮、超圆角卡片
 - ✅ Toast 通知系统
 - ✅ 加载状态指示
 - ✅ 响应式设计
 - ✅ Shadcn UI 组件库
 - ✅ 拖拽视觉反馈
 - ✅ 长按交互支持
+- ✅ 悬浮显示完整标题（处理长标题截断）
+
+### 9. **本地化与 CSV 增强**
+- ✅ **全中文 CSV 模板支持**（UTF-8 BOM，防止 Excel/WPS 乱码）
+- ✅ **智能标题识别**: 自动支持中文表头（标题、日期、时间等）
+- ✅ **拖拽上传 UI**: 居中设计的交互式文件拖放区
 
 ## 📊 技术栈
 
 ### 前端
 - **框架**: Next.js 14 (App Router)
-- **语言**: TypeScript
-- **样式**: TailwindCSS
-- **UI 组件**: Shadcn UI
-- **表单**: React Hook Form + Zod
-- **日期**: date-fns
-- **CSV**: PapaParse
-
-### 后端
-- **运行时**: Node.js
-- **API**: Next.js API Routes
-- **数据库**: PostgreSQL (Prisma)
-- **认证**: JWT (jose) + bcryptjs
-- **推送**: web-push
-
-### 测试
-- **框架**: Vitest
-- **库**: @testing-library/react
-- **覆盖**: 核心业务逻辑全覆盖
+- **样式**: TailwindCSS (Custom Glassmorphism Tokens)
+- **图标**: Lucide React
+- **UI 组件**: Shadcn UI + Framer Motion (Animations)
+... (keep the rest unchanged)
 
 ## 🚀 快速开始
 
-```bash
-# 安装依赖
-pnpm install
-
-# 配置环境变量（复制 .env.example 到 .env）
-cp .env.example .env
-
-# 同步数据库
-npx prisma db push
-
-# 启动开发服务器
-pnpm dev
-```
-
-访问 http://localhost:3000
+... (keep unchanged)
 
 ## 📝 使用说明
 
-### 1. 注册账户
-访问 `/register` 创建账户
-
-### 2. 创建事件
-- 在日历页面点击日期
-- 填写事件信息
-- 系统自动生成提醒任务
-
-### 3. 批量导入
-- 点击 "Import CSV"
-- 上传 CSV 文件（格式：title, date, time, label, notes）
-- 预览并确认导入
-
-### 4. 配置提醒规则
-- 访问 Settings 页面
-- 为不同标签配置提醒规则
-- 例如：合同 → 提前 7,3,1 天提醒
-- **勾选 "Avoid Weekends"** 确保提醒在工作日发送
-
-### 5. 启用推送通知
-- Settings → Enable Notifications
-- 允许浏览器通知权限
-- 系统自动发送提醒
+... (keep unchanged)
 
 ## 📄 文档
 
@@ -146,6 +106,6 @@ pnpm dev
 
 ---
 
-**项目状态**: ✅ 生产就绪
+**项目状态**: ✅ 生产就绪 (UI Polish 100%)
 
-**最后更新**: 2025-12-26
+**最后更新**: 2026-01-03
